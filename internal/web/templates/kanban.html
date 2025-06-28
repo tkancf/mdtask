@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kanban - mdtask</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <style>
+        .kanban-column {
+            min-height: 500px;
+        }
+        .dragging {
+            opacity: 0.5;
+        }
+        .drag-over {
+            background-color: #f3f4f6;
+            border: 2px dashed #d1d5db;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex">
+                    <div class="flex-shrink-0 flex items-center">
+                        <a href="/" class="text-xl font-bold text-gray-900">mdtask</a>
+                    </div>
+                    <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+                        <a href="/" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            Dashboard
+                        </a>
+                        <a href="/tasks" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            Tasks
+                        </a>
+                        <a href="/kanban" class="border-indigo-500 text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            Kanban
+                        </a>
+                        <a href="/new" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            New Task
+                        </a>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <form action="/tasks" method="get" class="flex">
+                        <input type="text" name="q" placeholder="Search tasks..." 
+                               class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <button type="submit" class="ml-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">
+                            Search
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div class="px-4 py-6 sm:px-0">
+            <h1 class="text-3xl font-bold text-gray-900 mb-8">Kanban Board</h1>
+            
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <!-- TODO Column -->
+                <div class="bg-white rounded-lg shadow">
+                    <div class="bg-yellow-100 px-4 py-3 rounded-t-lg">
+                        <h2 class="font-semibold text-yellow-800">TODO</h2>
+                        <p class="text-sm text-yellow-600">{{.TodoCount}} tasks</p>
+                    </div>
+                    <div class="p-4 kanban-column space-y-3" data-status="TODO" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        {{range .Tasks}}
+                            {{if eq .GetStatus "TODO"}}
+                            <div class="kanban-card bg-white border rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow cursor-move"
+                                 draggable="true" 
+                                 ondragstart="drag(event)" 
+                                 data-task-id="{{.ID}}"
+                                 id="task-{{.ID}}">
+                                <h3 class="font-medium text-gray-900 mb-1">{{.Title}}</h3>
+                                {{if .Description}}
+                                <p class="text-sm text-gray-600 mb-2">{{.Description}}</p>
+                                {{end}}
+                                {{if .GetDeadline}}
+                                <p class="text-xs text-gray-500">
+                                    <span class="{{if lt .GetDeadline.Unix (now).Unix}}text-red-600 font-medium{{end}}">
+                                        Due: {{.GetDeadline.Format "2006-01-02"}}
+                                    </span>
+                                </p>
+                                {{end}}
+                                <div class="mt-2 flex gap-1 flex-wrap">
+                                    {{range .Tags}}
+                                        {{if and (ne . "mdtask") (not (hasPrefix . "mdtask/"))}}
+                                        <span class="inline-block px-2 py-1 text-xs rounded bg-gray-100 text-gray-700">{{.}}</span>
+                                        {{end}}
+                                    {{end}}
+                                </div>
+                            </div>
+                            {{end}}
+                        {{end}}
+                    </div>
+                </div>
+
+                <!-- WIP Column -->
+                <div class="bg-white rounded-lg shadow">
+                    <div class="bg-blue-100 px-4 py-3 rounded-t-lg">
+                        <h2 class="font-semibold text-blue-800">In Progress</h2>
+                        <p class="text-sm text-blue-600">{{.WipCount}} tasks</p>
+                    </div>
+                    <div class="p-4 kanban-column space-y-3" data-status="WIP" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        {{range .Tasks}}
+                            {{if eq .GetStatus "WIP"}}
+                            <div class="kanban-card bg-white border rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow cursor-move"
+                                 draggable="true" 
+                                 ondragstart="drag(event)" 
+                                 data-task-id="{{.ID}}"
+                                 id="task-{{.ID}}">
+                                <h3 class="font-medium text-gray-900 mb-1">{{.Title}}</h3>
+                                {{if .Description}}
+                                <p class="text-sm text-gray-600 mb-2">{{.Description}}</p>
+                                {{end}}
+                                {{if .GetDeadline}}
+                                <p class="text-xs text-gray-500">
+                                    <span class="{{if lt .GetDeadline.Unix (now).Unix}}text-red-600 font-medium{{end}}">
+                                        Due: {{.GetDeadline.Format "2006-01-02"}}
+                                    </span>
+                                </p>
+                                {{end}}
+                                <div class="mt-2 flex gap-1 flex-wrap">
+                                    {{range .Tags}}
+                                        {{if and (ne . "mdtask") (not (hasPrefix . "mdtask/"))}}
+                                        <span class="inline-block px-2 py-1 text-xs rounded bg-gray-100 text-gray-700">{{.}}</span>
+                                        {{end}}
+                                    {{end}}
+                                </div>
+                            </div>
+                            {{end}}
+                        {{end}}
+                    </div>
+                </div>
+
+                <!-- WAIT Column -->
+                <div class="bg-white rounded-lg shadow">
+                    <div class="bg-gray-100 px-4 py-3 rounded-t-lg">
+                        <h2 class="font-semibold text-gray-800">Waiting</h2>
+                        <p class="text-sm text-gray-600">{{.WaitCount}} tasks</p>
+                    </div>
+                    <div class="p-4 kanban-column space-y-3" data-status="WAIT" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        {{range .Tasks}}
+                            {{if eq .GetStatus "WAIT"}}
+                            <div class="kanban-card bg-white border rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow cursor-move"
+                                 draggable="true" 
+                                 ondragstart="drag(event)" 
+                                 data-task-id="{{.ID}}"
+                                 id="task-{{.ID}}">
+                                <h3 class="font-medium text-gray-900 mb-1">{{.Title}}</h3>
+                                {{if .Description}}
+                                <p class="text-sm text-gray-600 mb-2">{{.Description}}</p>
+                                {{end}}
+                                {{if .GetDeadline}}
+                                <p class="text-xs text-gray-500">
+                                    <span class="{{if lt .GetDeadline.Unix (now).Unix}}text-red-600 font-medium{{end}}">
+                                        Due: {{.GetDeadline.Format "2006-01-02"}}
+                                    </span>
+                                </p>
+                                {{end}}
+                                <div class="mt-2 flex gap-1 flex-wrap">
+                                    {{range .Tags}}
+                                        {{if and (ne . "mdtask") (not (hasPrefix . "mdtask/"))}}
+                                        <span class="inline-block px-2 py-1 text-xs rounded bg-gray-100 text-gray-700">{{.}}</span>
+                                        {{end}}
+                                    {{end}}
+                                </div>
+                            </div>
+                            {{end}}
+                        {{end}}
+                    </div>
+                </div>
+
+                <!-- DONE Column -->
+                <div class="bg-white rounded-lg shadow">
+                    <div class="bg-green-100 px-4 py-3 rounded-t-lg">
+                        <h2 class="font-semibold text-green-800">Done</h2>
+                        <p class="text-sm text-green-600">{{.DoneCount}} tasks</p>
+                    </div>
+                    <div class="p-4 kanban-column space-y-3" data-status="DONE" ondrop="drop(event)" ondragover="allowDrop(event)">
+                        {{range .Tasks}}
+                            {{if eq .GetStatus "DONE"}}
+                            <div class="kanban-card bg-white border rounded-lg p-3 shadow-sm hover:shadow-md transition-shadow cursor-move"
+                                 draggable="true" 
+                                 ondragstart="drag(event)" 
+                                 data-task-id="{{.ID}}"
+                                 id="task-{{.ID}}">
+                                <h3 class="font-medium text-gray-900 mb-1">{{.Title}}</h3>
+                                {{if .Description}}
+                                <p class="text-sm text-gray-600 mb-2">{{.Description}}</p>
+                                {{end}}
+                                {{if .GetDeadline}}
+                                <p class="text-xs text-gray-500">
+                                    <span class="{{if lt .GetDeadline.Unix (now).Unix}}text-red-600 font-medium{{end}}">
+                                        Due: {{.GetDeadline.Format "2006-01-02"}}
+                                    </span>
+                                </p>
+                                {{end}}
+                                <div class="mt-2 flex gap-1 flex-wrap">
+                                    {{range .Tags}}
+                                        {{if and (ne . "mdtask") (not (hasPrefix . "mdtask/"))}}
+                                        <span class="inline-block px-2 py-1 text-xs rounded bg-gray-100 text-gray-700">{{.}}</span>
+                                        {{end}}
+                                    {{end}}
+                                </div>
+                            </div>
+                            {{end}}
+                        {{end}}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let draggedElement = null;
+
+        function allowDrop(ev) {
+            ev.preventDefault();
+            const column = ev.currentTarget;
+            if (column.classList.contains('kanban-column')) {
+                column.classList.add('drag-over');
+            }
+        }
+
+        function drag(ev) {
+            draggedElement = ev.target;
+            ev.target.classList.add('dragging');
+            ev.dataTransfer.effectAllowed = 'move';
+            ev.dataTransfer.setData('text/html', ev.target.innerHTML);
+        }
+
+        function drop(ev) {
+            ev.preventDefault();
+            const column = ev.currentTarget;
+            column.classList.remove('drag-over');
+            
+            if (draggedElement && column.classList.contains('kanban-column')) {
+                const newStatus = column.getAttribute('data-status');
+                const taskId = draggedElement.getAttribute('data-task-id');
+                
+                // Move the card visually
+                column.appendChild(draggedElement);
+                draggedElement.classList.remove('dragging');
+                
+                // Update the task status via API
+                updateTaskStatus(taskId, newStatus);
+            }
+        }
+
+        // Remove drag-over class when leaving
+        document.querySelectorAll('.kanban-column').forEach(column => {
+            column.addEventListener('dragleave', function(e) {
+                if (e.target === column) {
+                    column.classList.remove('drag-over');
+                }
+            });
+        });
+
+        async function updateTaskStatus(taskId, status) {
+            try {
+                const response = await fetch(`/api/task/${taskId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ status: status })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to update task status');
+                }
+
+                // Update the count displays
+                updateColumnCounts();
+            } catch (error) {
+                console.error('Error updating task status:', error);
+                // Reload page on error to reset state
+                window.location.reload();
+            }
+        }
+
+        function updateColumnCounts() {
+            const columns = ['TODO', 'WIP', 'WAIT', 'DONE'];
+            columns.forEach(status => {
+                const column = document.querySelector(`[data-status="${status}"]`);
+                const count = column.querySelectorAll('.kanban-card').length;
+                const header = column.previousElementSibling;
+                const countElement = header.querySelector('p');
+                countElement.textContent = `${count} tasks`;
+            });
+        }
+
+        // Make cards clickable to view details
+        document.querySelectorAll('.kanban-card').forEach(card => {
+            card.addEventListener('click', function(e) {
+                // Don't navigate if dragging
+                if (!e.target.classList.contains('dragging')) {
+                    const taskId = this.getAttribute('data-task-id');
+                    window.location.href = `/task/${taskId}`;
+                }
+            });
+        });
+    </script>
+    <script src="/static/js/app.js"></script>
+</body>
+</html>

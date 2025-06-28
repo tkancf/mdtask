@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/tkan/mdtask/internal/repository"
@@ -36,6 +37,9 @@ func NewServer(repo *repository.TaskRepository, port string) (*Server, error) {
 		"lt": func(a, b int64) bool {
 			return a < b
 		},
+		"hasPrefix": func(s, prefix string) bool {
+			return strings.HasPrefix(s, prefix)
+		},
 	}
 
 	tmpl, err := template.New("").Funcs(funcMap).ParseFS(templateFS, "templates/*.html")
@@ -56,9 +60,11 @@ func (s *Server) Start() error {
 	// Routes
 	mux.HandleFunc("/", s.handleIndex)
 	mux.HandleFunc("/tasks", s.handleTasks)
+	mux.HandleFunc("/kanban", s.handleKanban)
 	mux.HandleFunc("/task/", s.handleTaskDetail)
 	mux.HandleFunc("/api/task/", s.handleTaskAPI)
 	mux.HandleFunc("/new", s.handleNewTask)
+	mux.HandleFunc("/edit/", s.handleEditTask)
 
 	// Static files
 	mux.Handle("/static/", http.FileServer(http.FS(staticFS)))

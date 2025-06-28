@@ -189,6 +189,132 @@ func (s *Server) handleNewTask(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (s *Server) handleKanban(w http.ResponseWriter, r *http.Request) {
+	tasks, err := s.repo.FindActive()
+	if err != nil {
+		http.Error(w, "Failed to load tasks", http.StatusInternalServerError)
+		return
+	}
+
+	data := PageData{
+		Title:       "Kanban Board",
+		Tasks:       tasks,
+		TotalTasks:  len(tasks),
+		ActiveTasks: len(tasks),
+	}
+
+	// Count tasks by status
+	for _, t := range tasks {
+		switch t.GetStatus() {
+		case task.StatusTODO:
+			data.TodoCount++
+		case task.StatusWIP:
+			data.WipCount++
+		case task.StatusWAIT:
+			data.WaitCount++
+		case task.StatusDONE:
+			data.DoneCount++
+		}
+	}
+
+	s.render(w, "kanban.html", data)
+}
+
+func (s *Server) handleEditTask(w http.ResponseWriter, r *http.Request) {
+	taskID := strings.TrimPrefix(r.URL.Path, "/edit/")
+	if taskID == "" {
+		http.NotFound(w, r)
+		return
+	}
+
+	if r.Method == "GET" {
+		t, err := s.repo.FindByID(taskID)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		data := PageData{
+			Title: "Edit Task",
+			Task:  t,
+		}
+		s.render(w, "edit.html", data)
+		return
+	}
+
+	if r.Method == "POST" {
+		r.ParseForm()
+
+		t, err := s.repo.FindByID(taskID)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		// Load configuration
+		cfg, err := config.LoadFromDefaultLocation()
+		if err != nil {
+			http.Error(w, "Failed to load config", http.StatusInternalServerError)
+			return
+		}
+
+		// Update task fields
+		title := r.FormValue("title")
+		if cfg.Task.TitlePrefix != "" && !strings.HasPrefix(title, cfg.Task.TitlePrefix) {
+			title = cfg.Task.TitlePrefix + title
+		}
+		t.Title = title
+		t.Description = r.FormValue("description")
+		t.Content = r.FormValue("content")
+
+		// Update status
+		status := r.FormValue("status")
+		if status != "" {
+			t.SetStatus(task.Status(status))
+		}
+
+		// Update deadline
+		deadlineStr := r.FormValue("deadline")
+		if deadlineStr != "" {
+			if deadline, err := time.Parse("2006-01-02", deadlineStr); err == nil {
+				t.SetDeadline(deadline)
+			}
+		} else {
+			// Clear deadline if empty
+			t.RemoveDeadline()
+		}
+
+		// Update tags
+		t.Tags = []string{"mdtask"} // Always keep mdtask tag
+		tagsStr := r.FormValue("tags")
+		if tagsStr != "" {
+			tags := strings.Split(tagsStr, ",")
+			for _, tag := range tags {
+				tag = strings.TrimSpace(tag)
+				if tag != "" && tag != "mdtask" && !strings.HasPrefix(tag, "mdtask/") {
+					t.Tags = append(t.Tags, tag)
+				}
+			}
+		}
+
+		// Preserve mdtask/ prefixed tags (status, deadline, etc.)
+		for _, tag := range t.Tags {
+			if strings.HasPrefix(tag, "mdtask/") {
+				// These are already handled by SetStatus, SetDeadline, etc.
+				continue
+			}
+		}
+
+		err = s.repo.Update(t)
+		if err != nil {
+			http.Error(w, "Failed to update task", http.StatusInternalServerError)
+			return
+		}
+
+		http.Redirect(w, r, fmt.Sprintf("/task/%s", t.ID), http.StatusSeeOther)
+	}
+}
+
 func (s *Server) handleTaskAPI(w http.ResponseWriter, r *http.Request) {
 	taskID := strings.TrimPrefix(r.URL.Path, "/api/task/")
 	
@@ -211,15 +337,37 @@ func (s *Server) handleTaskAPI(w http.ResponseWriter, r *http.Request) {
 		}
 
 		t.SetStatus(task.Status(req.Status))
-		t.Updated = time.Now()
 
-		// Find and update the file
-		// This is simplified - in production, we'd track file paths
-		http.Error(w, "Not implemented", http.StatusNotImplemented)
+		err = s.repo.Update(t)
+		if err != nil {
+			http.Error(w, "Failed to update task", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 
 	case "DELETE":
 		// Archive task
-		http.Error(w, "Not implemented", http.StatusNotImplemented)
+		t, err := s.repo.FindByID(taskID)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+
+		t.Archive()
+		
+		err = s.repo.Update(t)
+		if err != nil {
+			http.Error(w, "Failed to archive task", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
 }
 

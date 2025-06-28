@@ -110,6 +110,16 @@ func (t *Task) SetDeadline(deadline time.Time) {
 	t.Tags = newTags
 }
 
+func (t *Task) RemoveDeadline() {
+	newTags := []string{}
+	for _, tag := range t.Tags {
+		if len(tag) < 16 || tag[:16] != "mdtask/deadline/" {
+			newTags = append(newTags, tag)
+		}
+	}
+	t.Tags = newTags
+}
+
 func (t *Task) GetWaitReason() string {
 	for _, tag := range t.Tags {
 		if len(tag) > 15 && tag[:15] == "mdtask/waitfor/" {

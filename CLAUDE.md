@@ -77,3 +77,9 @@ cp mdtask.toml.example .mdtask.toml
 - Do not add Co-Authored-By entries for Claude in commit messages
 - Do not add "Generated with Claude Code" lines in commit messages
 - Keep commit messages concise and descriptive
+- **Make git commits at appropriate times during task implementation**:
+  - After completing each major feature or component
+  - When finishing a logical unit of work (e.g., after implementing a new command, fixing a bug, adding a new page)
+  - Before switching to a different part of the codebase
+  - After making significant changes that work correctly
+  - Use descriptive commit messages that explain what was implemented
