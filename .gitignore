@@ -6,7 +6,7 @@
 *.dylib
 
 # Binary
-mdtask
+/mdtask
 
 # Test binary, built with `go test -c`
 *.test
