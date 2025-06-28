@@ -87,8 +87,8 @@ func (t *Task) Archive() {
 
 func (t *Task) GetDeadline() *time.Time {
 	for _, tag := range t.Tags {
-		if len(tag) > 17 && tag[:17] == "mdtask/deadline/" {
-			dateStr := tag[17:]
+		if len(tag) > 16 && tag[:16] == "mdtask/deadline/" {
+			dateStr := tag[16:]
 			if deadline, err := time.Parse("2006-01-02", dateStr); err == nil {
 				return &deadline
 			}
@@ -100,7 +100,7 @@ func (t *Task) GetDeadline() *time.Time {
 func (t *Task) SetDeadline(deadline time.Time) {
 	newTags := []string{}
 	for _, tag := range t.Tags {
-		if len(tag) < 17 || tag[:17] != "mdtask/deadline/" {
+		if len(tag) < 16 || tag[:16] != "mdtask/deadline/" {
 			newTags = append(newTags, tag)
 		}
 	}
@@ -112,8 +112,8 @@ func (t *Task) SetDeadline(deadline time.Time) {
 
 func (t *Task) GetWaitReason() string {
 	for _, tag := range t.Tags {
-		if len(tag) > 16 && tag[:16] == "mdtask/waitfor/" {
-			return tag[16:]
+		if len(tag) > 15 && tag[:15] == "mdtask/waitfor/" {
+			return tag[15:]
 		}
 	}
 	return ""
@@ -122,7 +122,7 @@ func (t *Task) GetWaitReason() string {
 func (t *Task) SetWaitReason(reason string) {
 	newTags := []string{}
 	for _, tag := range t.Tags {
-		if len(tag) < 16 || tag[:16] != "mdtask/waitfor/" {
+		if len(tag) < 15 || tag[:15] != "mdtask/waitfor/" {
 			newTags = append(newTags, tag)
 		}
 	}
