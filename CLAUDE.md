@@ -59,6 +59,9 @@ golangci-lint run
 
 # Start WebUI on specific port
 ./mdtask web --port 8080 --paths .
+
+# Example configuration file (see mdtask.toml.example)
+cp mdtask.toml.example .mdtask.toml
 ```
 
 ## Key Design Decisions
@@ -67,6 +70,7 @@ golangci-lint run
 2. **Tag-based Status**: Task status and metadata are managed through a hierarchical tag system
 3. **Timestamp-based IDs**: Unique IDs are generated from creation timestamps to ensure uniqueness without external dependencies
 4. **Automatic Port Selection**: WebUI starts on port 7000 by default, but automatically tries next ports if occupied
+5. **Configuration System**: TOML-based config files with hierarchical search (current dir → home dir) for customization
 
 ## Git Commit Guidelines
 

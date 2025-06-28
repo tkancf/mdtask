@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/tkan/mdtask/internal/config"
 	"github.com/tkan/mdtask/internal/repository"
 	"github.com/tkan/mdtask/internal/task"
 )
@@ -33,11 +34,19 @@ func init() {
 }
 
 func runList(cmd *cobra.Command, args []string) error {
+	// Load configuration
+	cfg, err := config.LoadFromDefaultLocation()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
 	paths, _ := cmd.Flags().GetStringSlice("paths")
+	if len(paths) == 1 && paths[0] == "." && len(cfg.Paths) > 0 {
+		paths = cfg.Paths
+	}
 	repo := repository.NewTaskRepository(paths)
 
 	var tasks []*task.Task
-	var err error
 
 	if listStatus != "" {
 		status := task.Status(listStatus)

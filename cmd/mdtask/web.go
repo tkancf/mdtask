@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"os/exec"
 	"runtime"
+	"strconv"
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/tkan/mdtask/internal/config"
 	"github.com/tkan/mdtask/internal/repository"
 	"github.com/tkan/mdtask/internal/web"
 )
@@ -30,10 +32,31 @@ func init() {
 }
 
 func runWeb(cmd *cobra.Command, args []string) error {
+	// Load configuration
+	cfg, err := config.LoadFromDefaultLocation()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
+	// Use config values if not specified by flags
+	port := webPort
+	if cmd.Flags().Changed("port") == false && cfg.Web.Port > 0 {
+		port = strconv.Itoa(cfg.Web.Port)
+	}
+	
+	openBrowser := webOpen
+	if cmd.Flags().Changed("open") == false {
+		openBrowser = cfg.Web.OpenBrowser
+	}
+
 	paths, _ := cmd.Flags().GetStringSlice("paths")
+	if len(paths) == 1 && paths[0] == "." && len(cfg.Paths) > 0 {
+		paths = cfg.Paths
+	}
+	
 	repo := repository.NewTaskRepository(paths)
 
-	server, err := web.NewServer(repo, webPort)
+	server, err := web.NewServer(repo, port)
 	if err != nil {
 		return fmt.Errorf("failed to create web server: %w", err)
 	}
@@ -48,10 +71,10 @@ func runWeb(cmd *cobra.Command, args []string) error {
 	time.Sleep(100 * time.Millisecond)
 
 	// Open browser if requested
-	if webOpen {
+	if openBrowser {
 		url := fmt.Sprintf("http://localhost:%s", server.GetPort())
 		fmt.Printf("Opening browser at %s...\n", url)
-		if err := openBrowser(url); err != nil {
+		if err := openBrowserURL(url); err != nil {
 			fmt.Printf("Failed to open browser: %v\n", err)
 		}
 	}
@@ -60,7 +83,7 @@ func runWeb(cmd *cobra.Command, args []string) error {
 	return <-errCh
 }
 
-func openBrowser(url string) error {
+func openBrowserURL(url string) error {
 	var err error
 
 	switch runtime.GOOS {

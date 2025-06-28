@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/tkan/mdtask/internal/config"
 	"github.com/tkan/mdtask/internal/repository"
 	"github.com/tkan/mdtask/internal/task"
 )
@@ -32,11 +33,17 @@ func init() {
 	newCmd.Flags().StringVarP(&newTitle, "title", "t", "", "Task title")
 	newCmd.Flags().StringVarP(&newDescription, "description", "d", "", "Task description")
 	newCmd.Flags().StringSliceVar(&newTags, "tags", []string{}, "Additional tags (comma-separated)")
-	newCmd.Flags().StringVarP(&newStatus, "status", "s", "TODO", "Initial status (TODO, WIP, WAIT, SCHE, DONE)")
+	newCmd.Flags().StringVarP(&newStatus, "status", "s", "", "Initial status (TODO, WIP, WAIT, SCHE, DONE)")
 	newCmd.Flags().StringVar(&newDeadline, "deadline", "", "Deadline (YYYY-MM-DD)")
 }
 
 func runNew(cmd *cobra.Command, args []string) error {
+	// Load configuration
+	cfg, err := config.LoadFromDefaultLocation()
+	if err != nil {
+		return fmt.Errorf("failed to load config: %w", err)
+	}
+
 	reader := bufio.NewReader(os.Stdin)
 
 	if newTitle == "" {
@@ -46,6 +53,11 @@ func runNew(cmd *cobra.Command, args []string) error {
 			return err
 		}
 		newTitle = strings.TrimSpace(title)
+	}
+	
+	// Apply title prefix from config
+	if cfg.Task.TitlePrefix != "" {
+		newTitle = cfg.Task.TitlePrefix + newTitle
 	}
 
 	if newDescription == "" {
@@ -76,8 +88,15 @@ func runNew(cmd *cobra.Command, args []string) error {
 		Aliases:     []string{},
 	}
 
-	status := task.Status(newStatus)
-	t.SetStatus(status)
+	// Use config default status if not specified
+	statusStr := newStatus
+	if statusStr == "" {
+		statusStr = cfg.Task.DefaultStatus
+	}
+	if statusStr == "" {
+		statusStr = "TODO"
+	}
+	t.SetStatus(task.Status(statusStr))
 
 	if newDeadline != "" {
 		deadline, err := time.Parse("2006-01-02", newDeadline)
@@ -88,6 +107,9 @@ func runNew(cmd *cobra.Command, args []string) error {
 	}
 
 	paths, _ := cmd.Flags().GetStringSlice("paths")
+	if len(paths) == 1 && paths[0] == "." && len(cfg.Paths) > 0 {
+		paths = cfg.Paths
+	}
 	repo := repository.NewTaskRepository(paths)
 
 	filePath, err := repo.Create(t)

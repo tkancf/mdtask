@@ -58,7 +58,10 @@ updated: YYYY-MM-DD HH:MM
     - `mdtask web` - WebUIの起動（デフォルトポート: 7000、自動ポート切替機能付き）
     - ダッシュボード、タスク管理、検索機能を含む直感的なUI
 - mdtaskの設定
-    - mdtaskはtoml形式の設定ファイルで制御が可能
-    - 設定には下記を含む
-        - 管理対象プロジェクトディレクトリ
-            - 指定したディレクトリ配下のMarkdownファイルのみを管理対象とする
+    - TOML形式の設定ファイルをサポート（.mdtask.toml、mdtask.toml、~/.config/mdtask/config.toml、~/.mdtask.toml）
+    - 設定可能な項目：
+        - `paths` - 管理対象ディレクトリの指定
+        - `task.title_prefix` - タスクタイトルに自動付与するプレフィックス
+        - `task.default_status` - 新規タスクのデフォルトステータス
+        - `web.port` - WebUIのデフォルトポート番号
+        - `web.open_browser` - WebUI起動時のブラウザ自動起動設定

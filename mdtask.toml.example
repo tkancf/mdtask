@@ -1,0 +1,34 @@
+# mdtask configuration file example
+# Copy this file to one of the following locations:
+#   - .mdtask.toml (current directory)
+#   - mdtask.toml (current directory)
+#   - ~/.config/mdtask/config.toml
+#   - ~/.mdtask.toml
+
+# Paths to search for task files
+# Default: ["."]
+paths = [".", "~/Documents/tasks", "~/Projects"]
+
+[task]
+# Prefix to add to all new task titles
+# This is useful for adding project codes, ticket numbers, etc.
+# Example: "[PROJECT-123] " or "TASK: "
+# Default: ""
+title_prefix = ""
+
+# Default status for new tasks
+# Options: TODO, WIP, WAIT, SCHE, DONE
+# Default: "TODO"
+default_status = "TODO"
+
+# Template for new task content (not implemented yet)
+# content_template = ""
+
+[web]
+# Default port for web server
+# Default: 7000
+port = 7000
+
+# Whether to open browser automatically when starting web server
+# Default: true
+open_browser = true

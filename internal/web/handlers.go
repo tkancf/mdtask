@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tkan/mdtask/internal/config"
 	"github.com/tkan/mdtask/internal/task"
 	"github.com/tkan/mdtask/pkg/markdown"
 )
@@ -124,9 +125,22 @@ func (s *Server) handleNewTask(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
 		r.ParseForm()
 		
+		// Load configuration
+		cfg, err := config.LoadFromDefaultLocation()
+		if err != nil {
+			http.Error(w, "Failed to load config", http.StatusInternalServerError)
+			return
+		}
+		
+		// Apply title prefix
+		title := r.FormValue("title")
+		if cfg.Task.TitlePrefix != "" {
+			title = cfg.Task.TitlePrefix + title
+		}
+		
 		t := &task.Task{
 			ID:          markdown.GenerateTaskID(),
-			Title:       r.FormValue("title"),
+			Title:       title,
 			Description: r.FormValue("description"),
 			Content:     r.FormValue("content"),
 			Created:     time.Now(),
@@ -135,10 +149,13 @@ func (s *Server) handleNewTask(w http.ResponseWriter, r *http.Request) {
 			Aliases:     []string{},
 		}
 
-		// Set status
+		// Set status with config default
 		status := r.FormValue("status")
 		if status == "" {
-			status = "TODO"
+			status = cfg.Task.DefaultStatus
+			if status == "" {
+				status = "TODO"
+			}
 		}
 		t.SetStatus(task.Status(status))
 
@@ -162,7 +179,7 @@ func (s *Server) handleNewTask(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		_, err := s.repo.Create(t)
+		_, err = s.repo.Create(t)
 		if err != nil {
 			http.Error(w, "Failed to create task", http.StatusInternalServerError)
 			return
