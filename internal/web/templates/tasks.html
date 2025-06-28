@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="bg-gray-50">
+    <nav class="bg-white shadow-sm border-b">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex">
+                    <div class="flex-shrink-0 flex items-center">
+                        <a href="/" class="text-xl font-bold text-gray-900">mdtask</a>
+                    </div>
+                    <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+                        <a href="/" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            Dashboard
+                        </a>
+                        <a href="/tasks" class="border-indigo-500 text-gray-900 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            Tasks
+                        </a>
+                        <a href="/new" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            New Task
+                        </a>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <form action="/tasks" method="get" class="flex">
+                        <input type="text" name="q" placeholder="Search tasks..." value="{{.Query}}"
+                               class="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <button type="submit" class="ml-2 px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700">
+                            Search
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </nav>
+<div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+    <div class="px-4 py-6 sm:px-0">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-900">Tasks</h1>
+            <a href="/new" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700">
+                New Task
+            </a>
+        </div>
+        
+        <!-- Filters -->
+        <div class="mb-6 flex space-x-4">
+            <a href="/tasks" class="{{if not .Status}}bg-gray-900 text-white{{else}}bg-white text-gray-700 hover:bg-gray-50{{end}} px-3 py-2 rounded-md text-sm font-medium">
+                All
+            </a>
+            <a href="/tasks?status=TODO" class="{{if eq .Status "TODO"}}bg-yellow-600 text-white{{else}}bg-white text-gray-700 hover:bg-gray-50{{end}} px-3 py-2 rounded-md text-sm font-medium">
+                TODO
+            </a>
+            <a href="/tasks?status=WIP" class="{{if eq .Status "WIP"}}bg-blue-600 text-white{{else}}bg-white text-gray-700 hover:bg-gray-50{{end}} px-3 py-2 rounded-md text-sm font-medium">
+                In Progress
+            </a>
+            <a href="/tasks?status=WAIT" class="{{if eq .Status "WAIT"}}bg-gray-600 text-white{{else}}bg-white text-gray-700 hover:bg-gray-50{{end}} px-3 py-2 rounded-md text-sm font-medium">
+                Waiting
+            </a>
+            <a href="/tasks?status=DONE" class="{{if eq .Status "DONE"}}bg-green-600 text-white{{else}}bg-white text-gray-700 hover:bg-gray-50{{end}} px-3 py-2 rounded-md text-sm font-medium">
+                Done
+            </a>
+        </div>
+        
+        <!-- Task List -->
+        <div class="bg-white shadow overflow-hidden sm:rounded-md">
+            <ul class="divide-y divide-gray-200">
+                {{range .Tasks}}
+                <li>
+                    <a href="/task/{{.ID}}" class="block hover:bg-gray-50 px-4 py-4 sm:px-6">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center">
+                                <div class="flex-shrink-0">
+                                    {{if eq .GetStatus "TODO"}}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                                        TODO
+                                    </span>
+                                    {{else if eq .GetStatus "WIP"}}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                        WIP
+                                    </span>
+                                    {{else if eq .GetStatus "WAIT"}}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                        WAIT
+                                    </span>
+                                    {{else if eq .GetStatus "DONE"}}
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        DONE
+                                    </span>
+                                    {{end}}
+                                </div>
+                                <div class="ml-4">
+                                    <div class="text-sm font-medium text-gray-900">{{.Title}}</div>
+                                    <div class="text-sm text-gray-500">{{.Description}}</div>
+                                    <div class="mt-1">
+                                        {{range .Tags}}
+                                        {{if ne . "mdtask"}}
+                                        <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 mr-1">
+                                            {{.}}
+                                        </span>
+                                        {{end}}
+                                        {{end}}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="flex flex-col items-end text-sm text-gray-500">
+                                <div>{{.ID}}</div>
+                                {{if .GetDeadline}}
+                                <div class="{{if lt .GetDeadline.Unix (now).Unix}}text-red-600 font-medium{{end}}">
+                                    {{.GetDeadline.Format "2006-01-02"}}
+                                </div>
+                                {{end}}
+                            </div>
+                        </div>
+                    </a>
+                </li>
+                {{else}}
+                <li class="px-4 py-4 sm:px-6 text-gray-500">
+                    No tasks found.
+                </li>
+                {{end}}
+            </ul>
+        </div>
+    </div>
+</div>
+    
+    <script src="/static/js/app.js"></script>
+</body>
+</html>
