@@ -32,3 +32,6 @@ go.work.sum
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Claude specific
+.claude/
