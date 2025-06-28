@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -43,7 +44,9 @@ func runArchive(cmd *cobra.Command, args []string) error {
 	task.Updated = time.Now()
 
 	var taskFilePath string
-	fileName := fmt.Sprintf("task_%s.md", taskID[5:])
+	// Try to find file by timestamp (task/YYYYMMDDHHMMSS -> YYYYMMDDHHMMSS.md)
+	timestamp := strings.TrimPrefix(taskID, "task/")
+	fileName := fmt.Sprintf("%s.md", timestamp)
 	for _, root := range paths {
 		testPath := filepath.Join(root, fileName)
 		if _, err := os.Stat(testPath); err == nil {

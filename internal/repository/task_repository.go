@@ -100,7 +100,9 @@ func (r *TaskRepository) Create(t *task.Task) (string, error) {
 		t.SetStatus(task.StatusTODO)
 	}
 
-	fileName := fmt.Sprintf("%s.md", strings.ReplaceAll(t.ID, "/", "_"))
+	// Extract timestamp from ID (task/YYYYMMDDHHMMSS -> YYYYMMDDHHMMSS.md)
+	timestamp := strings.TrimPrefix(t.ID, "task/")
+	fileName := fmt.Sprintf("%s.md", timestamp)
 	filePath := filepath.Join(r.rootPaths[0], fileName)
 
 	if err := r.Save(t, filePath); err != nil {

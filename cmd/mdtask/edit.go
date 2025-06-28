@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/tkan/mdtask/internal/repository"
@@ -59,7 +60,9 @@ func runEdit(cmd *cobra.Command, args []string) error {
 	}
 
 	if taskFilePath == "" {
-		fileName := fmt.Sprintf("task_%s.md", taskID[5:])
+		// Try to find file by timestamp (task/YYYYMMDDHHMMSS -> YYYYMMDDHHMMSS.md)
+		timestamp := strings.TrimPrefix(taskID, "task/")
+		fileName := fmt.Sprintf("%s.md", timestamp)
 		for _, root := range paths {
 			testPath := filepath.Join(root, fileName)
 			if _, err := os.Stat(testPath); err == nil {
