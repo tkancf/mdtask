@@ -1,17 +1,20 @@
 package task
 
 import (
+	"strings"
 	"time"
+
+	"github.com/tkan/mdtask/internal/constants"
 )
 
 type Status string
 
 const (
-	StatusTODO Status = "TODO"
-	StatusWIP  Status = "WIP"
-	StatusWAIT Status = "WAIT"
-	StatusSCHE Status = "SCHE"
-	StatusDONE Status = "DONE"
+	StatusTODO Status = Status(constants.StatusTODO)
+	StatusWIP  Status = Status(constants.StatusWIP)
+	StatusWAIT Status = Status(constants.StatusWAIT)
+	StatusSCHE Status = Status(constants.StatusSCHE)
+	StatusDONE Status = Status(constants.StatusDONE)
 )
 
 type Task struct {
@@ -25,170 +28,118 @@ type Task struct {
 	Content     string
 }
 
-func (t *Task) GetStatus() Status {
+// Helper function to filter tags by prefix
+func (t *Task) filterTagsByPrefix(prefix string, exclude bool) []string {
+	var result []string
 	for _, tag := range t.Tags {
-		switch tag {
-		case "mdtask/status/TODO":
-			return StatusTODO
-		case "mdtask/status/WIP":
-			return StatusWIP
-		case "mdtask/status/WAIT":
-			return StatusWAIT
-		case "mdtask/status/SCHE":
-			return StatusSCHE
-		case "mdtask/status/DONE":
-			return StatusDONE
+		hasPrefix := strings.HasPrefix(tag, prefix)
+		if (hasPrefix && !exclude) || (!hasPrefix && exclude) {
+			result = append(result, tag)
 		}
 	}
-	return StatusTODO
+	return result
 }
 
-func (t *Task) SetStatus(status Status) {
-	statusTags := []string{
-		"mdtask/status/TODO",
-		"mdtask/status/WIP",
-		"mdtask/status/WAIT",
-		"mdtask/status/SCHE",
-		"mdtask/status/DONE",
-	}
-	
-	newTags := []string{}
+// Helper function to get tag value with prefix
+func (t *Task) getTagWithPrefix(prefix string) (string, bool) {
+	prefixLen := len(prefix)
 	for _, tag := range t.Tags {
-		isStatusTag := false
-		for _, statusTag := range statusTags {
-			if tag == statusTag {
-				isStatusTag = true
-				break
-			}
-		}
-		if !isStatusTag {
-			newTags = append(newTags, tag)
+		if len(tag) > prefixLen && strings.HasPrefix(tag, prefix) {
+			return tag[prefixLen:], true
 		}
 	}
-	
-	newTags = append(newTags, "mdtask/status/"+string(status))
-	t.Tags = newTags
+	return "", false
 }
 
-func (t *Task) IsArchived() bool {
-	for _, tag := range t.Tags {
-		if tag == "mdtask/archived" {
+// Helper function to set tag with prefix
+func (t *Task) setTagWithPrefix(prefix, value string) {
+	t.Tags = t.filterTagsByPrefix(prefix, true)
+	if value != "" {
+		t.Tags = append(t.Tags, prefix+value)
+	}
+}
+
+// Helper function to check if tag exists
+func (t *Task) hasTag(tag string) bool {
+	for _, t := range t.Tags {
+		if t == tag {
 			return true
 		}
 	}
 	return false
 }
 
+func (t *Task) GetStatus() Status {
+	if value, ok := t.getTagWithPrefix(constants.StatusTagPrefix); ok {
+		return Status(value)
+	}
+	return StatusTODO
+}
+
+func (t *Task) SetStatus(status Status) {
+	t.setTagWithPrefix(constants.StatusTagPrefix, string(status))
+}
+
+func (t *Task) IsArchived() bool {
+	return t.hasTag(constants.ArchivedTag)
+}
+
 func (t *Task) Archive() {
 	if !t.IsArchived() {
-		t.Tags = append(t.Tags, "mdtask/archived")
+		t.Tags = append(t.Tags, constants.ArchivedTag)
 	}
 }
 
 func (t *Task) GetDeadline() *time.Time {
-	for _, tag := range t.Tags {
-		if len(tag) > 16 && tag[:16] == "mdtask/deadline/" {
-			dateStr := tag[16:]
-			if deadline, err := time.Parse("2006-01-02", dateStr); err == nil {
-				return &deadline
-			}
+	if value, ok := t.getTagWithPrefix(constants.DeadlineTagPrefix); ok {
+		if deadline, err := time.Parse(constants.DateFormat, value); err == nil {
+			return &deadline
 		}
 	}
 	return nil
 }
 
 func (t *Task) SetDeadline(deadline time.Time) {
-	newTags := []string{}
-	for _, tag := range t.Tags {
-		if len(tag) < 16 || tag[:16] != "mdtask/deadline/" {
-			newTags = append(newTags, tag)
-		}
-	}
-	
-	deadlineTag := "mdtask/deadline/" + deadline.Format("2006-01-02")
-	newTags = append(newTags, deadlineTag)
-	t.Tags = newTags
+	t.setTagWithPrefix(constants.DeadlineTagPrefix, deadline.Format(constants.DateFormat))
 }
 
 func (t *Task) RemoveDeadline() {
-	newTags := []string{}
-	for _, tag := range t.Tags {
-		if len(tag) < 16 || tag[:16] != "mdtask/deadline/" {
-			newTags = append(newTags, tag)
-		}
-	}
-	t.Tags = newTags
+	t.setTagWithPrefix(constants.DeadlineTagPrefix, "")
 }
 
 func (t *Task) GetWaitReason() string {
-	for _, tag := range t.Tags {
-		if len(tag) > 15 && tag[:15] == "mdtask/waitfor/" {
-			return tag[15:]
-		}
+	if value, ok := t.getTagWithPrefix(constants.WaitForTagPrefix); ok {
+		return value
 	}
 	return ""
 }
 
 func (t *Task) SetWaitReason(reason string) {
-	newTags := []string{}
-	for _, tag := range t.Tags {
-		if len(tag) < 15 || tag[:15] != "mdtask/waitfor/" {
-			newTags = append(newTags, tag)
-		}
-	}
-	
-	if reason != "" {
-		waitTag := "mdtask/waitfor/" + reason
-		newTags = append(newTags, waitTag)
-	}
-	t.Tags = newTags
+	t.setTagWithPrefix(constants.WaitForTagPrefix, reason)
 }
 
 func (t *Task) IsManagedTask() bool {
-	for _, tag := range t.Tags {
-		if tag == "mdtask" {
-			return true
-		}
-	}
-	return false
+	return t.hasTag(constants.TagPrefix)
 }
 
 func (t *Task) GetReminder() *time.Time {
-	for _, tag := range t.Tags {
-		if len(tag) > 16 && tag[:16] == "mdtask/reminder/" {
-			dateTimeStr := tag[16:]
-			// Try parsing with time first
-			if reminder, err := time.Parse("2006-01-02T15:04", dateTimeStr); err == nil {
-				return &reminder
-			}
-			// Fall back to date only
-			if reminder, err := time.Parse("2006-01-02", dateTimeStr); err == nil {
-				return &reminder
-			}
+	if value, ok := t.getTagWithPrefix(constants.ReminderTagPrefix); ok {
+		// Try parsing with time first
+		if reminder, err := time.Parse("2006-01-02T15:04", value); err == nil {
+			return &reminder
+		}
+		// Fall back to date only
+		if reminder, err := time.Parse(constants.DateFormat, value); err == nil {
+			return &reminder
 		}
 	}
 	return nil
 }
 
 func (t *Task) SetReminder(reminder time.Time) {
-	newTags := []string{}
-	for _, tag := range t.Tags {
-		if len(tag) < 16 || tag[:16] != "mdtask/reminder/" {
-			newTags = append(newTags, tag)
-		}
-	}
-	
-	reminderTag := "mdtask/reminder/" + reminder.Format("2006-01-02T15:04")
-	newTags = append(newTags, reminderTag)
-	t.Tags = newTags
+	t.setTagWithPrefix(constants.ReminderTagPrefix, reminder.Format("2006-01-02T15:04"))
 }
 
 func (t *Task) RemoveReminder() {
-	newTags := []string{}
-	for _, tag := range t.Tags {
-		if len(tag) < 16 || tag[:16] != "mdtask/reminder/" {
-			newTags = append(newTags, tag)
-		}
-	}
-	t.Tags = newTags
+	t.setTagWithPrefix(constants.ReminderTagPrefix, "")
 }

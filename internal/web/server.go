@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tkan/mdtask/internal/config"
+	"github.com/tkan/mdtask/internal/constants"
 	"github.com/tkan/mdtask/internal/repository"
 )
 
@@ -20,12 +22,13 @@ var templateFS embed.FS
 var staticFS embed.FS
 
 type Server struct {
-	repo      *repository.TaskRepository
+	repo      repository.Repository
 	templates *template.Template
+	config    *config.Config
 	port      string
 }
 
-func NewServer(repo *repository.TaskRepository, port string) (*Server, error) {
+func NewServer(repo repository.Repository, cfg *config.Config, port string) (*Server, error) {
 	funcMap := template.FuncMap{
 		"now": time.Now,
 		"eq": func(a, b interface{}) bool {
@@ -50,6 +53,7 @@ func NewServer(repo *repository.TaskRepository, port string) (*Server, error) {
 	return &Server{
 		repo:      repo,
 		templates: tmpl,
+		config:    cfg,
 		port:      port,
 	}, nil
 }
@@ -60,18 +64,23 @@ func (s *Server) Start() error {
 	// Routes
 	mux.HandleFunc("/", s.handleIndex)
 	mux.HandleFunc("/tasks", s.handleTasks)
-	mux.HandleFunc("/kanban", s.handleKanban)
-	mux.HandleFunc("/task/", s.handleTaskDetail)
-	mux.HandleFunc("/api/task/", s.handleTaskAPI)
-	mux.HandleFunc("/new", s.handleNewTask)
-	mux.HandleFunc("/edit/", s.handleEditTask)
+	mux.HandleFunc("/status/", s.handleByStatus)
+	mux.HandleFunc("/search", s.handleSearch)
+	mux.HandleFunc("/task/", s.handleTask)
+	mux.HandleFunc("/new", s.handleNew)
+	mux.HandleFunc("/edit/", s.handleEdit)
+	mux.HandleFunc("/archive/", s.handleArchive)
+	
+	// API routes
+	mux.HandleFunc("/api/tasks", s.handleAPITasks)
+	mux.HandleFunc("/api/task/", s.handleAPITask)
 
 	// Static files
 	mux.Handle("/static/", http.FileServer(http.FS(staticFS)))
 
 	// Try to start server on the specified port, if it fails, try the next few ports
 	port := s.port
-	maxRetries := 10
+	maxRetries := constants.MaxPortRetries
 	var lastErr error
 	
 	for i := 0; i < maxRetries; i++ {

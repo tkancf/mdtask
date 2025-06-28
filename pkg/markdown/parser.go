@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tkan/mdtask/internal/constants"
 	"github.com/tkan/mdtask/internal/task"
 	"gopkg.in/yaml.v3"
 )
@@ -32,19 +33,19 @@ func ParseTaskFile(content []byte) (*task.Task, error) {
 	}
 
 	// Parse time strings
-	created, err := time.Parse("2006-01-02 15:04", fm.Created)
+	created, err := time.Parse(constants.DateTimeFormat, fm.Created)
 	if err != nil {
 		// Try without time
-		created, err = time.Parse("2006-01-02", fm.Created)
+		created, err = time.Parse(constants.DateFormat, fm.Created)
 		if err != nil {
 			created = time.Now()
 		}
 	}
 	
-	updated, err := time.Parse("2006-01-02 15:04", fm.Updated)
+	updated, err := time.Parse(constants.DateTimeFormat, fm.Updated)
 	if err != nil {
 		// Try without time
-		updated, err = time.Parse("2006-01-02", fm.Updated)
+		updated, err = time.Parse(constants.DateFormat, fm.Updated)
 		if err != nil {
 			updated = time.Now()
 		}

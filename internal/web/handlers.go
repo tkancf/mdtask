@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/tkan/mdtask/internal/config"
+	"github.com/tkan/mdtask/internal/errors"
 	"github.com/tkan/mdtask/internal/task"
 	"github.com/tkan/mdtask/pkg/markdown"
 )
@@ -40,180 +41,242 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 
 	tasks, err := s.repo.FindActive()
 	if err != nil {
-		http.Error(w, "Failed to load tasks", http.StatusInternalServerError)
+		handleError(w, errors.InternalError("Failed to load tasks", err))
 		return
 	}
 
 	// Get all tasks for statistics
 	allTasks, _ := s.repo.FindAll()
+	stats := calculateDashboardStats(allTasks)
 	
 	data := PageData{
-		Title:       "mdtask - Dashboard",
-		Tasks:       tasks,
-		TotalTasks:  len(tasks),
-		ActiveTasks: len(tasks),
+		Title:          "Dashboard",
+		Tasks:          tasks,
+		TotalTasks:     len(allTasks),
+		ActiveTasks:    len(tasks),
+		TodoCount:      stats.TODO,
+		WipCount:       stats.WIP,
+		WaitCount:      stats.WAIT,
+		DoneCount:      stats.DONE,
+		CreatedToday:   stats.CreatedToday,
+		CompletedToday: stats.CompletedToday,
+		UpdatedToday:   stats.UpdatedToday,
+		OverdueTasks:   stats.OverdueTasks,
+		UpcomingTasks:  stats.UpcomingTasks,
 	}
 
-	now := time.Now()
-	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-	tomorrow := today.AddDate(0, 0, 1)
-	nextWeek := now.AddDate(0, 0, 7)
-
-	// Count tasks by status and calculate statistics
-	for _, t := range allTasks {
-		if t.IsArchived() {
-			continue
-		}
-		
-		switch t.GetStatus() {
-		case task.StatusTODO:
-			data.TodoCount++
-		case task.StatusWIP:
-			data.WipCount++
-		case task.StatusWAIT:
-			data.WaitCount++
-		case task.StatusDONE:
-			data.DoneCount++
-		}
-		
-		// Check if created today
-		if t.Created.After(today) && t.Created.Before(tomorrow) {
-			data.CreatedToday++
-		}
-		
-		// Check if completed today
-		if t.GetStatus() == task.StatusDONE && t.Updated.After(today) && t.Updated.Before(tomorrow) {
-			data.CompletedToday++
-		}
-		
-		// Check if updated today
-		if t.Updated.After(today) && t.Updated.Before(tomorrow) {
-			data.UpdatedToday++
-		}
-		
-		// Check deadlines
-		if deadline := t.GetDeadline(); deadline != nil {
-			if deadline.Before(now) {
-				data.OverdueTasks++
-			} else if deadline.Before(nextWeek) {
-				data.UpcomingTasks++
-			}
-		}
+	if err := s.templates.ExecuteTemplate(w, "index.html", data); err != nil {
+		handleError(w, errors.InternalError("Failed to render template", err))
 	}
-
-	s.render(w, "index.html", data)
 }
 
 func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
-	status := r.URL.Query().Get("status")
-	query := r.URL.Query().Get("q")
-	tags := r.URL.Query().Get("tags")
-	excludeTags := r.URL.Query().Get("exclude")
-	orMode := r.URL.Query().Get("mode") == "or"
-
 	var tasks []*task.Task
 	var err error
+	var title string
 
-	// Parse tag filters
-	var includeTags []string
-	var excludeTagList []string
-	
-	if tags != "" {
-		includeTags = strings.Split(tags, ",")
-		for i := range includeTags {
-			includeTags[i] = strings.TrimSpace(includeTags[i])
-		}
-	}
-	
-	if excludeTags != "" {
-		excludeTagList = strings.Split(excludeTags, ",")
-		for i := range excludeTagList {
-			excludeTagList[i] = strings.TrimSpace(excludeTagList[i])
-		}
-	}
-	
-	// Always exclude archived tasks in web view
-	excludeTagList = append(excludeTagList, "mdtask/archived")
+	// Check for tag filters
+	includeTags := r.URL.Query()["tags"]
+	excludeTags := r.URL.Query()["exclude"]
+	orMode := r.URL.Query().Get("or") == "true"
+	includeArchived := r.URL.Query().Get("archived") == "true"
 
-	// Apply filters
-	if len(includeTags) > 0 || len(excludeTagList) > 0 {
+	if len(includeTags) > 0 || len(excludeTags) > 0 {
 		// Tag-based search
-		tasks, err = s.repo.SearchByTags(includeTags, excludeTagList, orMode)
+		tasks, err = s.repo.SearchByTags(includeTags, excludeTags, orMode)
 		if err != nil {
-			http.Error(w, "Failed to search tasks", http.StatusInternalServerError)
+			handleError(w, errors.InternalError("Failed to search tasks", err))
 			return
 		}
 		
-		// Additional filters
-		if query != "" {
-			// Text filter
-			var filtered []*task.Task
-			queryLower := strings.ToLower(query)
-			for _, t := range tasks {
-				if strings.Contains(strings.ToLower(t.Title), queryLower) ||
-					strings.Contains(strings.ToLower(t.Description), queryLower) ||
-					strings.Contains(strings.ToLower(t.Content), queryLower) {
-					filtered = append(filtered, t)
+		// Include archived if requested
+		if includeArchived {
+			allTasks, _ := s.repo.FindAll()
+			for _, t := range allTasks {
+				if t.IsArchived() && matchesTags(t, includeTags, excludeTags, orMode) {
+					tasks = append(tasks, t)
 				}
 			}
-			tasks = filtered
 		}
 		
-		if status != "" {
-			// Status filter
-			var filtered []*task.Task
-			for _, t := range tasks {
-				if string(t.GetStatus()) == status {
-					filtered = append(filtered, t)
-				}
-			}
-			tasks = filtered
-		}
-	} else if query != "" {
-		tasks, err = s.repo.Search(query)
-		if err != nil {
-			http.Error(w, "Failed to search tasks", http.StatusInternalServerError)
-			return
-		}
-		// Filter out archived
-		var filtered []*task.Task
-		for _, t := range tasks {
-			if !t.IsArchived() {
-				filtered = append(filtered, t)
-			}
-		}
-		tasks = filtered
-	} else if status != "" {
-		tasks, err = s.repo.FindByStatus(task.Status(status))
+		title = fmt.Sprintf("Tasks filtered by tags (%d)", len(tasks))
 	} else {
+		// Default: show active tasks
 		tasks, err = s.repo.FindActive()
+		if err != nil {
+			handleError(w, errors.InternalError("Failed to load tasks", err))
+			return
+		}
+		title = "All Tasks"
 	}
 
+	data := PageData{
+		Title: title,
+		Tasks: tasks,
+	}
+
+	if err := s.templates.ExecuteTemplate(w, "tasks.html", data); err != nil {
+		handleError(w, errors.InternalError("Failed to render template", err))
+	}
+}
+
+func matchesTags(t *task.Task, includeTags, excludeTags []string, orMode bool) bool {
+	// Check exclude tags first
+	for _, excludeTag := range excludeTags {
+		for _, tag := range t.Tags {
+			if strings.EqualFold(tag, excludeTag) {
+				return false
+			}
+		}
+	}
+	
+	// Check include tags
+	if len(includeTags) == 0 {
+		return true
+	}
+	
+	if orMode {
+		// OR mode: at least one match
+		for _, includeTag := range includeTags {
+			for _, tag := range t.Tags {
+				if strings.EqualFold(tag, includeTag) {
+					return true
+				}
+			}
+		}
+		return false
+	} else {
+		// AND mode: all must match
+		for _, includeTag := range includeTags {
+			found := false
+			for _, tag := range t.Tags {
+				if strings.EqualFold(tag, includeTag) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return false
+			}
+		}
+		return true
+	}
+}
+
+func (s *Server) handleByStatus(w http.ResponseWriter, r *http.Request) {
+	statusStr := strings.TrimPrefix(r.URL.Path, "/status/")
+	
+	var status task.Status
+	switch statusStr {
+	case "todo":
+		status = task.StatusTODO
+	case "wip":
+		status = task.StatusWIP
+	case "wait":
+		status = task.StatusWAIT
+	case "done":
+		status = task.StatusDONE
+	default:
+		http.NotFound(w, r)
+		return
+	}
+
+	tasks, err := s.repo.FindByStatus(status)
 	if err != nil {
-		http.Error(w, "Failed to load tasks", http.StatusInternalServerError)
+		handleError(w, errors.InternalError("Failed to load tasks", err))
 		return
 	}
 
 	data := PageData{
-		Title:  "Tasks",
+		Title:  fmt.Sprintf("%s Tasks", status),
 		Tasks:  tasks,
-		Query:  query,
-		Status: status,
+		Status: string(status),
 	}
 
-	s.render(w, "tasks.html", data)
+	if err := s.templates.ExecuteTemplate(w, "tasks.html", data); err != nil {
+		handleError(w, errors.InternalError("Failed to render template", err))
+	}
 }
 
-func (s *Server) handleTaskDetail(w http.ResponseWriter, r *http.Request) {
-	taskID := strings.TrimPrefix(r.URL.Path, "/task/")
-	if taskID == "" {
-		http.NotFound(w, r)
+func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
+	query := r.URL.Query().Get("q")
+	if query == "" {
+		http.Redirect(w, r, "/tasks", http.StatusSeeOther)
 		return
 	}
 
-	t, err := s.repo.FindByID(taskID)
+	tasks, err := s.repo.Search(query)
 	if err != nil {
-		http.NotFound(w, r)
+		handleError(w, errors.InternalError("Failed to search tasks", err))
+		return
+	}
+
+	data := PageData{
+		Title: fmt.Sprintf("Search Results for '%s'", query),
+		Tasks: tasks,
+		Query: query,
+	}
+
+	if err := s.templates.ExecuteTemplate(w, "tasks.html", data); err != nil {
+		handleError(w, errors.InternalError("Failed to render template", err))
+	}
+}
+
+func (s *Server) handleNew(w http.ResponseWriter, r *http.Request) {
+	if r.Method == "GET" {
+		data := PageData{
+			Title: "New Task",
+			Task:  &task.Task{},
+		}
+		if err := s.templates.ExecuteTemplate(w, "edit.html", data); err != nil {
+			handleError(w, errors.InternalError("Failed to render template", err))
+		}
+		return
+	}
+
+	if r.Method == "POST" {
+		// Reload config to get latest settings
+		if cfg, err := config.LoadFromDefaultLocation(); err == nil {
+			s.config = cfg
+		}
+
+		t := &task.Task{
+			ID:      markdown.GenerateTaskID(),
+			Created: time.Now(),
+			Updated: time.Now(),
+		}
+
+		if err := s.parseTaskForm(r, t); err != nil {
+			handleError(w, errors.ValidationError("form", "Invalid form data"))
+			return
+		}
+
+		// Apply configuration
+		s.applyTaskConfig(t)
+
+		// Set default status if not set
+		if t.GetStatus() == "" {
+			t.SetStatus(task.StatusTODO)
+		}
+
+		// Create the task
+		filePath, err := s.repo.Create(t)
+		if err != nil {
+			handleError(w, errors.InternalError("Failed to create task", err))
+			return
+		}
+
+		fmt.Printf("Created task %s at %s\n", t.ID, filePath)
+		http.Redirect(w, r, fmt.Sprintf("/task/%s", t.ID), http.StatusSeeOther)
+	}
+}
+
+func (s *Server) handleTask(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimPrefix(r.URL.Path, "/task/")
+	
+	t, err := s.repo.FindByID(id)
+	if err != nil {
+		handleError(w, err)
 		return
 	}
 
@@ -222,150 +285,18 @@ func (s *Server) handleTaskDetail(w http.ResponseWriter, r *http.Request) {
 		Task:  t,
 	}
 
-	s.render(w, "task.html", data)
+	if err := s.templates.ExecuteTemplate(w, "task.html", data); err != nil {
+		handleError(w, errors.InternalError("Failed to render template", err))
+	}
 }
 
-func (s *Server) handleNewTask(w http.ResponseWriter, r *http.Request) {
+func (s *Server) handleEdit(w http.ResponseWriter, r *http.Request) {
+	id := strings.TrimPrefix(r.URL.Path, "/edit/")
+	
 	if r.Method == "GET" {
-		data := PageData{
-			Title: "New Task",
-		}
-		s.render(w, "new.html", data)
-		return
-	}
-
-	if r.Method == "POST" {
-		r.ParseForm()
-		
-		// Load configuration
-		cfg, err := config.LoadFromDefaultLocation()
+		t, err := s.repo.FindByID(id)
 		if err != nil {
-			http.Error(w, "Failed to load config", http.StatusInternalServerError)
-			return
-		}
-		
-		// Apply title prefix
-		title := r.FormValue("title")
-		if cfg.Task.TitlePrefix != "" {
-			title = cfg.Task.TitlePrefix + title
-		}
-		
-		// Apply templates if form values are empty
-		description := r.FormValue("description")
-		if description == "" && cfg.Task.DescriptionTemplate != "" {
-			description = cfg.Task.DescriptionTemplate
-		}
-		
-		content := r.FormValue("content")
-		if content == "" && cfg.Task.ContentTemplate != "" {
-			content = cfg.Task.ContentTemplate
-		}
-		
-		// Start with mdtask tag and default tags from config
-		tags := []string{"mdtask"}
-		tags = append(tags, cfg.Task.DefaultTags...)
-		
-		t := &task.Task{
-			ID:          markdown.GenerateTaskID(),
-			Title:       title,
-			Description: description,
-			Content:     content,
-			Created:     time.Now(),
-			Updated:     time.Now(),
-			Tags:        tags,
-			Aliases:     []string{},
-		}
-
-		// Set status with config default
-		status := r.FormValue("status")
-		if status == "" {
-			status = cfg.Task.DefaultStatus
-			if status == "" {
-				status = "TODO"
-			}
-		}
-		t.SetStatus(task.Status(status))
-
-		// Set deadline
-		deadlineStr := r.FormValue("deadline")
-		if deadlineStr != "" {
-			if deadline, err := time.Parse("2006-01-02", deadlineStr); err == nil {
-				t.SetDeadline(deadline)
-			}
-		}
-
-		// Set reminder
-		reminderStr := r.FormValue("reminder")
-		if reminderStr != "" {
-			if reminder, err := time.Parse("2006-01-02T15:04", reminderStr); err == nil {
-				t.SetReminder(reminder)
-			}
-		}
-
-		// Add tags
-		tagsStr := r.FormValue("tags")
-		if tagsStr != "" {
-			tags := strings.Split(tagsStr, ",")
-			for _, tag := range tags {
-				tag = strings.TrimSpace(tag)
-				if tag != "" {
-					t.Tags = append(t.Tags, tag)
-				}
-			}
-		}
-
-		_, err = s.repo.Create(t)
-		if err != nil {
-			http.Error(w, "Failed to create task", http.StatusInternalServerError)
-			return
-		}
-
-		http.Redirect(w, r, fmt.Sprintf("/task/%s", t.ID), http.StatusSeeOther)
-	}
-}
-
-func (s *Server) handleKanban(w http.ResponseWriter, r *http.Request) {
-	tasks, err := s.repo.FindActive()
-	if err != nil {
-		http.Error(w, "Failed to load tasks", http.StatusInternalServerError)
-		return
-	}
-
-	data := PageData{
-		Title:       "Kanban Board",
-		Tasks:       tasks,
-		TotalTasks:  len(tasks),
-		ActiveTasks: len(tasks),
-	}
-
-	// Count tasks by status
-	for _, t := range tasks {
-		switch t.GetStatus() {
-		case task.StatusTODO:
-			data.TodoCount++
-		case task.StatusWIP:
-			data.WipCount++
-		case task.StatusWAIT:
-			data.WaitCount++
-		case task.StatusDONE:
-			data.DoneCount++
-		}
-	}
-
-	s.render(w, "kanban.html", data)
-}
-
-func (s *Server) handleEditTask(w http.ResponseWriter, r *http.Request) {
-	taskID := strings.TrimPrefix(r.URL.Path, "/edit/")
-	if taskID == "" {
-		http.NotFound(w, r)
-		return
-	}
-
-	if r.Method == "GET" {
-		t, err := s.repo.FindByID(taskID)
-		if err != nil {
-			http.NotFound(w, r)
+			handleError(w, err)
 			return
 		}
 
@@ -373,164 +304,135 @@ func (s *Server) handleEditTask(w http.ResponseWriter, r *http.Request) {
 			Title: "Edit Task",
 			Task:  t,
 		}
-		s.render(w, "edit.html", data)
+
+		if err := s.templates.ExecuteTemplate(w, "edit.html", data); err != nil {
+			handleError(w, errors.InternalError("Failed to render template", err))
+		}
 		return
 	}
 
 	if r.Method == "POST" {
-		r.ParseForm()
-
-		t, err := s.repo.FindByID(taskID)
+		t, err := s.repo.FindByID(id)
 		if err != nil {
-			http.NotFound(w, r)
+			handleError(w, err)
 			return
 		}
 
-		// Load configuration
-		cfg, err := config.LoadFromDefaultLocation()
-		if err != nil {
-			http.Error(w, "Failed to load config", http.StatusInternalServerError)
+		// Preserve mdtask-prefixed tags
+		preservedTags := preserveMdtaskTags(t.Tags)
+
+		// Parse form
+		if err := s.parseTaskForm(r, t); err != nil {
+			handleError(w, errors.ValidationError("form", "Invalid form data"))
 			return
 		}
 
-		// Update task fields
-		title := r.FormValue("title")
-		if cfg.Task.TitlePrefix != "" && !strings.HasPrefix(title, cfg.Task.TitlePrefix) {
-			title = cfg.Task.TitlePrefix + title
-		}
-		t.Title = title
-		t.Description = r.FormValue("description")
-		t.Content = r.FormValue("content")
-
-		// First, preserve existing mdtask/ prefixed tags
-		var preservedTags []string
-		for _, tag := range t.Tags {
-			if strings.HasPrefix(tag, "mdtask/") && !strings.HasPrefix(tag, "mdtask/status/") && !strings.HasPrefix(tag, "mdtask/deadline/") {
-				preservedTags = append(preservedTags, tag)
-			}
-		}
-
-		// Update tags - start with mdtask tag and preserved tags
-		t.Tags = []string{"mdtask"}
+		// Add back preserved tags
 		t.Tags = append(t.Tags, preservedTags...)
 
-		// Add user-provided tags
-		tagsStr := r.FormValue("tags")
-		if tagsStr != "" {
-			tags := strings.Split(tagsStr, ",")
-			for _, tag := range tags {
-				tag = strings.TrimSpace(tag)
-				if tag != "" && tag != "mdtask" && !strings.HasPrefix(tag, "mdtask/") {
-					t.Tags = append(t.Tags, tag)
-				}
-			}
-		}
-
-		// Update status (this will add the appropriate mdtask/status/ tag)
-		status := r.FormValue("status")
-		if status != "" {
-			t.SetStatus(task.Status(status))
-		} else {
-			// If no status is provided, preserve the existing status
-			currentStatus := t.GetStatus()
-			if currentStatus != "" {
-				t.SetStatus(currentStatus)
-			} else {
-				// Only set to TODO if there's truly no existing status
-				t.SetStatus(task.StatusTODO)
-			}
-		}
-
-		// Update deadline (this will add the appropriate mdtask/deadline/ tag)
-		deadlineStr := r.FormValue("deadline")
-		if deadlineStr != "" {
-			if deadline, err := time.Parse("2006-01-02", deadlineStr); err == nil {
-				t.SetDeadline(deadline)
-			}
-		} else {
-			// Clear deadline if empty
-			t.RemoveDeadline()
-		}
-
-		// Update reminder
-		reminderStr := r.FormValue("reminder")
-		if reminderStr != "" {
-			if reminder, err := time.Parse("2006-01-02T15:04", reminderStr); err == nil {
-				t.SetReminder(reminder)
-			}
-		} else {
-			// Clear reminder if empty
-			t.RemoveReminder()
-		}
-
-		err = s.repo.Update(t)
-		if err != nil {
-			http.Error(w, "Failed to update task", http.StatusInternalServerError)
+		// Update task
+		if err := s.repo.Update(t); err != nil {
+			handleError(w, errors.InternalError("Failed to update task", err))
 			return
 		}
 
+		fmt.Printf("Updated task %s\n", t.ID)
 		http.Redirect(w, r, fmt.Sprintf("/task/%s", t.ID), http.StatusSeeOther)
 	}
 }
 
-func (s *Server) handleTaskAPI(w http.ResponseWriter, r *http.Request) {
-	taskID := strings.TrimPrefix(r.URL.Path, "/api/task/")
-	
-	switch r.Method {
-	case "PUT":
-		// Update task status
-		var req struct {
-			Status string `json:"status"`
-		}
-		
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "Invalid request", http.StatusBadRequest)
-			return
-		}
-
-		t, err := s.repo.FindByID(taskID)
-		if err != nil {
-			http.NotFound(w, r)
-			return
-		}
-
-		t.SetStatus(task.Status(req.Status))
-
-		err = s.repo.Update(t)
-		if err != nil {
-			http.Error(w, "Failed to update task", http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-
-	case "DELETE":
-		// Archive task
-		t, err := s.repo.FindByID(taskID)
-		if err != nil {
-			http.NotFound(w, r)
-			return
-		}
-
-		t.Archive()
-		
-		err = s.repo.Update(t)
-		if err != nil {
-			http.Error(w, "Failed to archive task", http.StatusInternalServerError)
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-	
-	default:
+func (s *Server) handleArchive(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
 	}
+
+	id := strings.TrimPrefix(r.URL.Path, "/archive/")
+	
+	t, err := s.repo.FindByID(id)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	t.Archive()
+	
+	if err := s.repo.Update(t); err != nil {
+		handleError(w, errors.InternalError("Failed to archive task", err))
+		return
+	}
+
+	fmt.Printf("Archived task %s\n", t.ID)
+	http.Redirect(w, r, "/tasks", http.StatusSeeOther)
 }
 
-func (s *Server) render(w http.ResponseWriter, tmpl string, data interface{}) {
-	if err := s.templates.ExecuteTemplate(w, tmpl, data); err != nil {
-		http.Error(w, fmt.Sprintf("Failed to render template: %v", err), http.StatusInternalServerError)
+// API handlers
+
+type APITaskResponse struct {
+	ID          string    `json:"id"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	Status      string    `json:"status"`
+	Tags        []string  `json:"tags"`
+	Created     time.Time `json:"created"`
+	Updated     time.Time `json:"updated"`
+	Content     string    `json:"content,omitempty"`
+}
+
+func (s *Server) handleAPITasks(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
 	}
+
+	tasks, err := s.repo.FindActive()
+	if err != nil {
+		handleError(w, errors.InternalError("Failed to load tasks", err))
+		return
+	}
+
+	response := make([]APITaskResponse, len(tasks))
+	for i, t := range tasks {
+		response[i] = APITaskResponse{
+			ID:          t.ID,
+			Title:       t.Title,
+			Description: t.Description,
+			Status:      string(t.GetStatus()),
+			Tags:        t.Tags,
+			Created:     t.Created,
+			Updated:     t.Updated,
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func (s *Server) handleAPITask(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	id := strings.TrimPrefix(r.URL.Path, "/api/task/")
+	
+	t, err := s.repo.FindByID(id)
+	if err != nil {
+		handleError(w, err)
+		return
+	}
+
+	response := APITaskResponse{
+		ID:          t.ID,
+		Title:       t.Title,
+		Description: t.Description,
+		Status:      string(t.GetStatus()),
+		Tags:        t.Tags,
+		Created:     t.Created,
+		Updated:     t.Updated,
+		Content:     t.Content,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
 }

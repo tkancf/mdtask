@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/tkan/mdtask/internal/constants"
 	"github.com/tkan/mdtask/internal/task"
 	"gopkg.in/yaml.v3"
 )
@@ -18,8 +19,8 @@ func WriteTaskFile(t *task.Task) ([]byte, error) {
 		Description: t.Description,
 		Aliases:     t.Aliases,
 		Tags:        t.Tags,
-		Created:     t.Created.Format("2006-01-02 15:04"),
-		Updated:     t.Updated.Format("2006-01-02 15:04"),
+		Created:     t.Created.Format(constants.DateTimeFormat),
+		Updated:     t.Updated.Format(constants.DateTimeFormat),
 	}
 
 	yamlData, err := yaml.Marshal(&fm)
@@ -50,11 +51,11 @@ func GenerateTaskID() string {
 	
 	now := time.Now()
 	// If generating in the same second, wait a bit
-	if now.Format("20060102150405") == lastGeneratedTime.Format("20060102150405") {
-		time.Sleep(time.Second)
+	if now.Format(constants.IDTimeFormat) == lastGeneratedTime.Format(constants.IDTimeFormat) {
+		time.Sleep(constants.GenerateIDSleepDuration)
 		now = time.Now()
 	}
 	lastGeneratedTime = now
 	
-	return fmt.Sprintf("task/%s", now.Format("20060102150405"))
+	return fmt.Sprintf("%s%s", constants.TaskIDPrefix, now.Format(constants.IDTimeFormat))
 }

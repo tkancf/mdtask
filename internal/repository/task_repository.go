@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/tkan/mdtask/internal/constants"
+	"github.com/tkan/mdtask/internal/errors"
 	"github.com/tkan/mdtask/internal/task"
 	"github.com/tkan/mdtask/pkg/markdown"
 )
@@ -31,7 +33,7 @@ func (r *TaskRepository) FindAll() ([]*task.Task, error) {
 				return err
 			}
 
-			if d.IsDir() || !strings.HasSuffix(path, ".md") {
+			if d.IsDir() || !strings.HasSuffix(path, constants.MarkdownExtension) {
 				return nil
 			}
 
@@ -48,7 +50,7 @@ func (r *TaskRepository) FindAll() ([]*task.Task, error) {
 		})
 
 		if err != nil {
-			return nil, fmt.Errorf("failed to walk directory %s: %w", root, err)
+			return nil, errors.InternalError(fmt.Sprintf("failed to walk directory %s", root), err)
 		}
 	}
 
@@ -67,7 +69,7 @@ func (r *TaskRepository) FindByID(id string) (*task.Task, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("task not found: %s", id)
+	return nil, errors.NotFound("task", id)
 }
 
 // FindByIDWithPath finds a task by ID and returns the task and its file path
@@ -81,7 +83,7 @@ func (r *TaskRepository) FindByIDWithPath(id string) (*task.Task, string, error)
 				return err
 			}
 
-			if d.IsDir() || !strings.HasSuffix(path, ".md") {
+			if d.IsDir() || !strings.HasSuffix(path, constants.MarkdownExtension) {
 				return nil
 			}
 
@@ -109,39 +111,39 @@ func (r *TaskRepository) FindByIDWithPath(id string) (*task.Task, string, error)
 	}
 
 	// Try to find by filename pattern
-	timestamp := strings.TrimPrefix(id, "task/")
+	timestamp := strings.TrimPrefix(id, constants.TaskIDPrefix)
 	for _, root := range r.rootPaths {
 		// Try exact match
-		path := filepath.Join(root, timestamp+".md")
+		path := filepath.Join(root, timestamp+constants.MarkdownExtension)
 		if t, err := r.loadTask(path); err == nil && t != nil && t.ID == id {
 			return t, path, nil
 		}
 		
 		// Try with suffix
 		for i := 1; i < 10; i++ {
-			path = filepath.Join(root, fmt.Sprintf("%s_%d.md", timestamp, i))
+			path = filepath.Join(root, fmt.Sprintf("%s_%d%s", timestamp, i, constants.MarkdownExtension))
 			if t, err := r.loadTask(path); err == nil && t != nil && t.ID == id {
 				return t, path, nil
 			}
 		}
 	}
 
-	return nil, "", fmt.Errorf("task not found: %s", id)
+	return nil, "", errors.NotFound("task", id)
 }
 
 func (r *TaskRepository) Save(t *task.Task, filePath string) error {
 	content, err := markdown.WriteTaskFile(t)
 	if err != nil {
-		return fmt.Errorf("failed to write task file: %w", err)
+		return errors.InternalError("failed to write task file", err)
 	}
 
 	dir := filepath.Dir(filePath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		return fmt.Errorf("failed to create directory: %w", err)
+	if err := os.MkdirAll(dir, constants.DirPermission); err != nil {
+		return errors.InternalError(fmt.Sprintf("failed to create directory %s", dir), err)
 	}
 
-	if err := os.WriteFile(filePath, content, 0644); err != nil {
-		return fmt.Errorf("failed to save file: %w", err)
+	if err := os.WriteFile(filePath, content, constants.FilePermission); err != nil {
+		return errors.InternalError(fmt.Sprintf("failed to save file %s", filePath), err)
 	}
 
 	return nil
@@ -153,7 +155,7 @@ func (r *TaskRepository) Create(t *task.Task) (string, error) {
 	}
 
 	if !t.IsManagedTask() {
-		t.Tags = append(t.Tags, "mdtask")
+		t.Tags = append(t.Tags, constants.TagPrefix)
 	}
 
 	if t.GetStatus() == "" {
@@ -161,19 +163,19 @@ func (r *TaskRepository) Create(t *task.Task) (string, error) {
 	}
 
 	// Extract timestamp from ID (task/YYYYMMDDHHMMSS -> YYYYMMDDHHMMSS.md)
-	timestamp := strings.TrimPrefix(t.ID, "task/")
+	timestamp := strings.TrimPrefix(t.ID, constants.TaskIDPrefix)
 	baseFileName := timestamp
 	
 	// Check if file already exists and add suffix if needed
 	var filePath string
-	for i := 0; i < 100; i++ {
+	for i := 0; i < constants.MaxFilenameSuffix; i++ {
 		var fileName string
 		if i == 0 {
-			fileName = fmt.Sprintf("%s.md", baseFileName)
+			fileName = fmt.Sprintf("%s%s", baseFileName, constants.MarkdownExtension)
 		} else {
-			fileName = fmt.Sprintf("%s_%d.md", baseFileName, i)
+			fileName = fmt.Sprintf("%s_%d%s", baseFileName, i, constants.MarkdownExtension)
 			// Update task ID to match filename
-			t.ID = fmt.Sprintf("task/%s_%d", timestamp, i)
+			t.ID = fmt.Sprintf("%s%s_%d", constants.TaskIDPrefix, timestamp, i)
 		}
 		filePath = filepath.Join(r.rootPaths[0], fileName)
 		
@@ -192,14 +194,14 @@ func (r *TaskRepository) Create(t *task.Task) (string, error) {
 func (r *TaskRepository) Update(t *task.Task) error {
 	_, filePath, err := r.FindByIDWithPath(t.ID)
 	if err != nil {
-		return fmt.Errorf("failed to find task: %w", err)
+		return err // Already returns proper error type
 	}
 
 	// Update the updated timestamp
 	t.Updated = time.Now()
 
 	if err := r.Save(t, filePath); err != nil {
-		return fmt.Errorf("failed to save task: %w", err)
+		return err // Already returns proper error type
 	}
 
 	return nil
@@ -208,7 +210,7 @@ func (r *TaskRepository) Update(t *task.Task) error {
 func (r *TaskRepository) loadTask(path string) (*task.Task, error) {
 	content, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read file: %w", err)
+		return nil, errors.InternalError(fmt.Sprintf("failed to read file %s", path), err)
 	}
 
 	t, err := markdown.ParseTaskFile(content)

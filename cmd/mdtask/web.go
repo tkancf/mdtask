@@ -9,6 +9,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/tkan/mdtask/internal/config"
+	"github.com/tkan/mdtask/internal/constants"
 	"github.com/tkan/mdtask/internal/repository"
 	"github.com/tkan/mdtask/internal/web"
 )
@@ -27,8 +28,8 @@ var (
 
 func init() {
 	rootCmd.AddCommand(webCmd)
-	webCmd.Flags().StringVarP(&webPort, "port", "p", "7000", "Port to run the web server on")
-	webCmd.Flags().BoolVar(&webOpen, "open", true, "Open browser automatically")
+	webCmd.Flags().StringVarP(&webPort, "port", "p", strconv.Itoa(constants.DefaultWebPort), "Port to run the web server on")
+	webCmd.Flags().BoolVar(&webOpen, "open", constants.DefaultOpenBrowser, "Open browser automatically")
 }
 
 func runWeb(cmd *cobra.Command, args []string) error {
@@ -56,7 +57,7 @@ func runWeb(cmd *cobra.Command, args []string) error {
 	
 	repo := repository.NewTaskRepository(paths)
 
-	server, err := web.NewServer(repo, port)
+	server, err := web.NewServer(repo, cfg, port)
 	if err != nil {
 		return fmt.Errorf("failed to create web server: %w", err)
 	}
