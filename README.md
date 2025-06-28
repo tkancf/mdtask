@@ -47,17 +47,16 @@ updated: YYYY-MM-DD HH:MM
 ## mdtaskの機能
 
 - 上記フォーマットのMarkdownファイルを管理、作成できる
-- Go言語で作成される
+- Go言語で実装
 - mdtaskはCLIインターフェイスを提供する
-    - CLIインターフェイスは全ての機能を網羅する
-        - タスクの一覧
-        - タスクの検索
-        - タスクの作成
-        - タスクの編集
-        - タスクのアーカイブ
+    - `mdtask list` - タスクの一覧（--status, --archived, --allオプション付き）
+    - `mdtask search [query]` - タスクの検索
+    - `mdtask new` - タスクの作成（対話的またはフラグ指定）
+    - `mdtask edit [task-id]` - タスクの編集（エディタ起動）
+    - `mdtask archive [task-id]` - タスクのアーカイブ
 - mdtaskはWebブラウザインターフェイスを提供する
-    - より直感的な操作を可能とする
-    - mkdtaskのサブコマンドでWebアプリを起動でき、管理対象タスク一覧を制御できる
+    - `mdtask web` - WebUIの起動（デフォルトポート: 7000、自動ポート切替機能付き）
+    - ダッシュボード、タスク管理、検索機能を含む直感的なUI
 - mdtaskの設定
     - mdtaskはtoml形式の設定ファイルで制御が可能
     - 設定には下記を含む

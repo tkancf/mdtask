@@ -38,15 +38,7 @@ Tasks are Markdown files with YAML frontmatter containing:
 
 ## Development Commands
 
-Since this is a new Go project, when implementation begins:
-
 ```bash
-# Initialize Go module (if not already done)
-go mod init github.com/username/mdtask
-
-# Run the application
-go run main.go
-
 # Build the application
 go build -o mdtask
 
@@ -58,6 +50,15 @@ go fmt ./...
 
 # Lint code (requires golangci-lint)
 golangci-lint run
+
+# Run the test script
+./test.sh
+
+# Start WebUI (default port 7000)
+./mdtask web --paths .
+
+# Start WebUI on specific port
+./mdtask web --port 8080 --paths .
 ```
 
 ## Key Design Decisions
@@ -65,6 +66,7 @@ golangci-lint run
 1. **Markdown as Database**: Tasks are stored as individual Markdown files, making them human-readable and version-control friendly
 2. **Tag-based Status**: Task status and metadata are managed through a hierarchical tag system
 3. **Timestamp-based IDs**: Unique IDs are generated from creation timestamps to ensure uniqueness without external dependencies
+4. **Automatic Port Selection**: WebUI starts on port 7000 by default, but automatically tries next ports if occupied
 
 ## Git Commit Guidelines
 
