@@ -267,25 +267,19 @@ func (s *Server) handleEditTask(w http.ResponseWriter, r *http.Request) {
 		t.Description = r.FormValue("description")
 		t.Content = r.FormValue("content")
 
-		// Update status
-		status := r.FormValue("status")
-		if status != "" {
-			t.SetStatus(task.Status(status))
-		}
-
-		// Update deadline
-		deadlineStr := r.FormValue("deadline")
-		if deadlineStr != "" {
-			if deadline, err := time.Parse("2006-01-02", deadlineStr); err == nil {
-				t.SetDeadline(deadline)
+		// First, preserve existing mdtask/ prefixed tags
+		var preservedTags []string
+		for _, tag := range t.Tags {
+			if strings.HasPrefix(tag, "mdtask/") && !strings.HasPrefix(tag, "mdtask/status/") && !strings.HasPrefix(tag, "mdtask/deadline/") {
+				preservedTags = append(preservedTags, tag)
 			}
-		} else {
-			// Clear deadline if empty
-			t.RemoveDeadline()
 		}
 
-		// Update tags
-		t.Tags = []string{"mdtask"} // Always keep mdtask tag
+		// Update tags - start with mdtask tag and preserved tags
+		t.Tags = []string{"mdtask"}
+		t.Tags = append(t.Tags, preservedTags...)
+
+		// Add user-provided tags
 		tagsStr := r.FormValue("tags")
 		if tagsStr != "" {
 			tags := strings.Split(tagsStr, ",")
@@ -297,12 +291,30 @@ func (s *Server) handleEditTask(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// Preserve mdtask/ prefixed tags (status, deadline, etc.)
-		for _, tag := range t.Tags {
-			if strings.HasPrefix(tag, "mdtask/") {
-				// These are already handled by SetStatus, SetDeadline, etc.
-				continue
+		// Update status (this will add the appropriate mdtask/status/ tag)
+		status := r.FormValue("status")
+		if status != "" {
+			t.SetStatus(task.Status(status))
+		} else {
+			// If no status is provided, preserve the existing status
+			currentStatus := t.GetStatus()
+			if currentStatus != "" {
+				t.SetStatus(currentStatus)
+			} else {
+				// Only set to TODO if there's truly no existing status
+				t.SetStatus(task.StatusTODO)
 			}
+		}
+
+		// Update deadline (this will add the appropriate mdtask/deadline/ tag)
+		deadlineStr := r.FormValue("deadline")
+		if deadlineStr != "" {
+			if deadline, err := time.Parse("2006-01-02", deadlineStr); err == nil {
+				t.SetDeadline(deadline)
+			}
+		} else {
+			// Clear deadline if empty
+			t.RemoveDeadline()
 		}
 
 		err = s.repo.Update(t)
