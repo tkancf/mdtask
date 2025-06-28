@@ -65,3 +65,36 @@ updated: YYYY-MM-DD HH:MM
         - `task.default_status` - 新規タスクのデフォルトステータス
         - `web.port` - WebUIのデフォルトポート番号
         - `web.open_browser` - WebUI起動時のブラウザ自動起動設定
+
+## インストール
+
+### 前提条件
+
+- Go 1.19以上
+- Node.js 16以上（WebUIのスタイル生成用）
+
+### ソースからビルド
+
+```bash
+git clone https://github.com/tkan/mdtask.git
+cd mdtask
+
+# npm依存関係をインストールしてCSSをビルド
+npm install
+npm run build-css
+
+# バイナリをビルド
+go build -o mdtask
+```
+
+### 開発モード
+
+開発中はCSSの変更を監視できます：
+
+```bash
+# CSSの変更を監視
+npm run watch-css
+
+# 別のターミナルでGoアプリケーションを実行
+go run main.go web
+```

@@ -1,0 +1,14 @@
+{
+  "name": "mdtask",
+  "version": "1.0.0",
+  "description": "Task management tool using Markdown files",
+  "scripts": {
+    "build-css": "tailwindcss -i ./internal/web/static/css/input.css -o ./internal/web/static/css/style.css --minify",
+    "watch-css": "tailwindcss -i ./internal/web/static/css/input.css -o ./internal/web/static/css/style.css --watch",
+    "build": "npm run build-css && go build -o mdtask",
+    "dev": "npm run watch-css"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.1"
+  }
+}

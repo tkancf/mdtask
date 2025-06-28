@@ -35,3 +35,10 @@ Thumbs.db
 
 # Claude specific
 .claude/
+
+# Node.js dependencies
+node_modules/
+package-lock.json
+
+# Generated CSS
+internal/web/static/css/style.css
