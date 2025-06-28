@@ -278,3 +278,72 @@ func (r *TaskRepository) Search(query string) ([]*task.Task, error) {
 
 	return matched, nil
 }
+
+// SearchByTags searches tasks by tag combinations with AND/OR logic
+func (r *TaskRepository) SearchByTags(includeTags, excludeTags []string, orMode bool) ([]*task.Task, error) {
+	allTasks, err := r.FindAll()
+	if err != nil {
+		return nil, err
+	}
+
+	var matched []*task.Task
+	
+	for _, t := range allTasks {
+		if t.IsArchived() {
+			continue
+		}
+		
+		// Check exclude tags first
+		excluded := false
+		for _, excludeTag := range excludeTags {
+			if hasTag(t.Tags, excludeTag) {
+				excluded = true
+				break
+			}
+		}
+		if excluded {
+			continue
+		}
+		
+		// Check include tags
+		if len(includeTags) == 0 {
+			matched = append(matched, t)
+			continue
+		}
+		
+		if orMode {
+			// OR mode: task must have at least one of the include tags
+			for _, includeTag := range includeTags {
+				if hasTag(t.Tags, includeTag) {
+					matched = append(matched, t)
+					break
+				}
+			}
+		} else {
+			// AND mode: task must have all include tags
+			hasAll := true
+			for _, includeTag := range includeTags {
+				if !hasTag(t.Tags, includeTag) {
+					hasAll = false
+					break
+				}
+			}
+			if hasAll {
+				matched = append(matched, t)
+			}
+		}
+	}
+	
+	return matched, nil
+}
+
+// hasTag checks if a tag exists in the tag list (case-insensitive)
+func hasTag(tags []string, searchTag string) bool {
+	searchTag = strings.ToLower(searchTag)
+	for _, tag := range tags {
+		if strings.ToLower(tag) == searchTag {
+			return true
+		}
+	}
+	return false
+}
