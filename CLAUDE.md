@@ -65,3 +65,9 @@ golangci-lint run
 1. **Markdown as Database**: Tasks are stored as individual Markdown files, making them human-readable and version-control friendly
 2. **Tag-based Status**: Task status and metadata are managed through a hierarchical tag system
 3. **Timestamp-based IDs**: Unique IDs are generated from creation timestamps to ensure uniqueness without external dependencies
+
+## Git Commit Guidelines
+
+- Do not add Co-Authored-By entries for Claude in commit messages
+- Do not add "Generated with Claude Code" lines in commit messages
+- Keep commit messages concise and descriptive
