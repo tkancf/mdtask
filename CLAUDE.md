@@ -83,3 +83,14 @@ cp mdtask.toml.example .mdtask.toml
   - Before switching to a different part of the codebase
   - After making significant changes that work correctly
   - Use descriptive commit messages that explain what was implemented
+- **Commit frequently in appropriate units**:
+  - Each commit should represent one logical change
+  - Don't mix unrelated changes in a single commit
+  - Commit after each successfully implemented feature, even if small
+  - Examples of appropriate commit units:
+    - Adding a new command (e.g., "Add stats command for task statistics")
+    - Fixing a specific bug (e.g., "Fix WebUI edit status preservation")
+    - Adding a new feature to existing functionality (e.g., "Add reminder support to task structure")
+    - Updating UI/templates (e.g., "Add statistics section to dashboard")
+    - Refactoring code (e.g., "Refactor task filtering logic")
+  - Avoid commits that are too large (touching many unrelated files) or too small (fixing typos unless critical)
