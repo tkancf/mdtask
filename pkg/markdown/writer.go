@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/tkan/mdtask/internal/task"
@@ -40,7 +41,20 @@ func WriteTaskFile(t *task.Task) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
+var lastGeneratedTime time.Time
+var mu sync.Mutex
+
 func GenerateTaskID() string {
+	mu.Lock()
+	defer mu.Unlock()
+	
 	now := time.Now()
+	// If generating in the same second, wait a bit
+	if now.Format("20060102150405") == lastGeneratedTime.Format("20060102150405") {
+		time.Sleep(time.Second)
+		now = time.Now()
+	}
+	lastGeneratedTime = now
+	
 	return fmt.Sprintf("task/%s", now.Format("20060102150405"))
 }

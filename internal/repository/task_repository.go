@@ -102,8 +102,25 @@ func (r *TaskRepository) Create(t *task.Task) (string, error) {
 
 	// Extract timestamp from ID (task/YYYYMMDDHHMMSS -> YYYYMMDDHHMMSS.md)
 	timestamp := strings.TrimPrefix(t.ID, "task/")
-	fileName := fmt.Sprintf("%s.md", timestamp)
-	filePath := filepath.Join(r.rootPaths[0], fileName)
+	baseFileName := timestamp
+	
+	// Check if file already exists and add suffix if needed
+	var filePath string
+	for i := 0; i < 100; i++ {
+		var fileName string
+		if i == 0 {
+			fileName = fmt.Sprintf("%s.md", baseFileName)
+		} else {
+			fileName = fmt.Sprintf("%s_%d.md", baseFileName, i)
+			// Update task ID to match filename
+			t.ID = fmt.Sprintf("task/%s_%d", timestamp, i)
+		}
+		filePath = filepath.Join(r.rootPaths[0], fileName)
+		
+		if _, err := os.Stat(filePath); os.IsNotExist(err) {
+			break
+		}
+	}
 
 	if err := r.Save(t, filePath); err != nil {
 		return "", err
