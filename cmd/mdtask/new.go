@@ -61,30 +61,49 @@ func runNew(cmd *cobra.Command, args []string) error {
 	}
 
 	if newDescription == "" {
-		fmt.Print("Description: ")
-		desc, err := reader.ReadString('\n')
-		if err != nil {
-			return err
+		// Use description template if available
+		if cfg.Task.DescriptionTemplate != "" {
+			newDescription = cfg.Task.DescriptionTemplate
+		} else {
+			fmt.Print("Description: ")
+			desc, err := reader.ReadString('\n')
+			if err != nil {
+				return err
+			}
+			newDescription = strings.TrimSpace(desc)
 		}
-		newDescription = strings.TrimSpace(desc)
 	}
 
-	fmt.Println("\nContent (press Ctrl+D to finish):")
-	var contentBuilder strings.Builder
-	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
-		contentBuilder.WriteString(scanner.Text())
-		contentBuilder.WriteString("\n")
+	var content string
+	if cfg.Task.ContentTemplate != "" {
+		// Use content template if available
+		content = cfg.Task.ContentTemplate
+		fmt.Println("\nUsing content template from configuration.")
+	} else {
+		fmt.Println("\nContent (press Ctrl+D to finish):")
+		var contentBuilder strings.Builder
+		scanner := bufio.NewScanner(os.Stdin)
+		for scanner.Scan() {
+			contentBuilder.WriteString(scanner.Text())
+			contentBuilder.WriteString("\n")
+		}
+		content = strings.TrimSpace(contentBuilder.String())
 	}
 
 	now := time.Now()
+	
+	// Merge default tags from config with provided tags
+	allTags := []string{"mdtask"}
+	allTags = append(allTags, cfg.Task.DefaultTags...)
+	allTags = append(allTags, newTags...)
+	
 	t := &task.Task{
 		Title:       newTitle,
 		Description: newDescription,
 		Created:     now,
 		Updated:     now,
-		Content:     strings.TrimSpace(contentBuilder.String()),
-		Tags:        append([]string{"mdtask"}, newTags...),
+		Content:     content,
+		Tags:        allTags,
 		Aliases:     []string{},
 	}
 

@@ -30,6 +30,12 @@ type TaskConfig struct {
 	
 	// Template for new task content
 	ContentTemplate string `toml:"content_template"`
+	
+	// Template for new task description
+	DescriptionTemplate string `toml:"description_template"`
+	
+	// Default tags to add to new tasks
+	DefaultTags []string `toml:"default_tags"`
 }
 
 // WebConfig contains web server configuration

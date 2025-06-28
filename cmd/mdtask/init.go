@@ -17,16 +17,34 @@ This creates a .mdtask.toml configuration file with default settings.`,
 }
 
 var (
-	initForce bool
+	initForce  bool
+	initGlobal bool
 )
 
 func init() {
 	rootCmd.AddCommand(initCmd)
 	initCmd.Flags().BoolVarP(&initForce, "force", "f", false, "Overwrite existing configuration file")
+	initCmd.Flags().BoolVarP(&initGlobal, "global", "g", false, "Create global configuration in ~/.config/mdtask/config.toml")
 }
 
 func runInit(cmd *cobra.Command, args []string) error {
-	configPath := ".mdtask.toml"
+	var configPath string
+	
+	if initGlobal {
+		// Create global config
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			return fmt.Errorf("failed to get home directory: %w", err)
+		}
+		configDir := filepath.Join(homeDir, ".config", "mdtask")
+		if err := os.MkdirAll(configDir, 0755); err != nil {
+			return fmt.Errorf("failed to create config directory: %w", err)
+		}
+		configPath = filepath.Join(configDir, "config.toml")
+	} else {
+		// Create local config
+		configPath = ".mdtask.toml"
+	}
 	
 	// Check if config file already exists
 	if _, err := os.Stat(configPath); err == nil && !initForce {
@@ -53,8 +71,34 @@ title_prefix = ""
 # Default: "TODO"
 default_status = "TODO"
 
-# Template for new task content (not implemented yet)
-# content_template = ""
+# Template for new task description
+# This will be used as default description for new tasks
+# Example: "TODO: Add description"
+# Default: ""
+description_template = ""
+
+# Template for new task content
+# This will be used as default content for new tasks
+# Supports multiline strings with triple quotes
+# Example:
+# content_template = """
+# ## Background
+# 
+# ## Objective
+# 
+# ## Tasks
+# - [ ] Task 1
+# - [ ] Task 2
+# 
+# ## Notes
+# """
+content_template = ""
+
+# Default tags to add to all new tasks
+# These tags will be added in addition to "mdtask" and any user-specified tags
+# Example: ["project/myproject", "type/feature"]
+# Default: []
+default_tags = []
 
 [web]
 # Default port for web server

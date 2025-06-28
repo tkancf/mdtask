@@ -138,14 +138,29 @@ func (s *Server) handleNewTask(w http.ResponseWriter, r *http.Request) {
 			title = cfg.Task.TitlePrefix + title
 		}
 		
+		// Apply templates if form values are empty
+		description := r.FormValue("description")
+		if description == "" && cfg.Task.DescriptionTemplate != "" {
+			description = cfg.Task.DescriptionTemplate
+		}
+		
+		content := r.FormValue("content")
+		if content == "" && cfg.Task.ContentTemplate != "" {
+			content = cfg.Task.ContentTemplate
+		}
+		
+		// Start with mdtask tag and default tags from config
+		tags := []string{"mdtask"}
+		tags = append(tags, cfg.Task.DefaultTags...)
+		
 		t := &task.Task{
 			ID:          markdown.GenerateTaskID(),
 			Title:       title,
-			Description: r.FormValue("description"),
-			Content:     r.FormValue("content"),
+			Description: description,
+			Content:     content,
 			Created:     time.Now(),
 			Updated:     time.Now(),
-			Tags:        []string{"mdtask"},
+			Tags:        tags,
 			Aliases:     []string{},
 		}
 
