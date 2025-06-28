@@ -24,6 +24,12 @@ type PageData struct {
 	DoneCount   int
 	Query       string
 	Status      string
+	// Statistics
+	CreatedToday   int
+	CompletedToday int
+	UpdatedToday   int
+	OverdueTasks   int
+	UpcomingTasks  int
 }
 
 func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
@@ -38,6 +44,9 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Get all tasks for statistics
+	allTasks, _ := s.repo.FindAll()
+	
 	data := PageData{
 		Title:       "mdtask - Dashboard",
 		Tasks:       tasks,
@@ -45,8 +54,17 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		ActiveTasks: len(tasks),
 	}
 
-	// Count tasks by status
-	for _, t := range tasks {
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	tomorrow := today.AddDate(0, 0, 1)
+	nextWeek := now.AddDate(0, 0, 7)
+
+	// Count tasks by status and calculate statistics
+	for _, t := range allTasks {
+		if t.IsArchived() {
+			continue
+		}
+		
 		switch t.GetStatus() {
 		case task.StatusTODO:
 			data.TodoCount++
@@ -57,6 +75,30 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		case task.StatusDONE:
 			data.DoneCount++
 		}
+		
+		// Check if created today
+		if t.Created.After(today) && t.Created.Before(tomorrow) {
+			data.CreatedToday++
+		}
+		
+		// Check if completed today
+		if t.GetStatus() == task.StatusDONE && t.Updated.After(today) && t.Updated.Before(tomorrow) {
+			data.CompletedToday++
+		}
+		
+		// Check if updated today
+		if t.Updated.After(today) && t.Updated.Before(tomorrow) {
+			data.UpdatedToday++
+		}
+		
+		// Check deadlines
+		if deadline := t.GetDeadline(); deadline != nil {
+			if deadline.Before(now) {
+				data.OverdueTasks++
+			} else if deadline.Before(nextWeek) {
+				data.UpcomingTasks++
+			}
+		}
 	}
 
 	s.render(w, "index.html", data)
@@ -65,12 +107,82 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleTasks(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
 	query := r.URL.Query().Get("q")
+	tags := r.URL.Query().Get("tags")
+	excludeTags := r.URL.Query().Get("exclude")
+	orMode := r.URL.Query().Get("mode") == "or"
 
 	var tasks []*task.Task
 	var err error
 
-	if query != "" {
+	// Parse tag filters
+	var includeTags []string
+	var excludeTagList []string
+	
+	if tags != "" {
+		includeTags = strings.Split(tags, ",")
+		for i := range includeTags {
+			includeTags[i] = strings.TrimSpace(includeTags[i])
+		}
+	}
+	
+	if excludeTags != "" {
+		excludeTagList = strings.Split(excludeTags, ",")
+		for i := range excludeTagList {
+			excludeTagList[i] = strings.TrimSpace(excludeTagList[i])
+		}
+	}
+	
+	// Always exclude archived tasks in web view
+	excludeTagList = append(excludeTagList, "mdtask/archived")
+
+	// Apply filters
+	if len(includeTags) > 0 || len(excludeTagList) > 0 {
+		// Tag-based search
+		tasks, err = s.repo.SearchByTags(includeTags, excludeTagList, orMode)
+		if err != nil {
+			http.Error(w, "Failed to search tasks", http.StatusInternalServerError)
+			return
+		}
+		
+		// Additional filters
+		if query != "" {
+			// Text filter
+			var filtered []*task.Task
+			queryLower := strings.ToLower(query)
+			for _, t := range tasks {
+				if strings.Contains(strings.ToLower(t.Title), queryLower) ||
+					strings.Contains(strings.ToLower(t.Description), queryLower) ||
+					strings.Contains(strings.ToLower(t.Content), queryLower) {
+					filtered = append(filtered, t)
+				}
+			}
+			tasks = filtered
+		}
+		
+		if status != "" {
+			// Status filter
+			var filtered []*task.Task
+			for _, t := range tasks {
+				if string(t.GetStatus()) == status {
+					filtered = append(filtered, t)
+				}
+			}
+			tasks = filtered
+		}
+	} else if query != "" {
 		tasks, err = s.repo.Search(query)
+		if err != nil {
+			http.Error(w, "Failed to search tasks", http.StatusInternalServerError)
+			return
+		}
+		// Filter out archived
+		var filtered []*task.Task
+		for _, t := range tasks {
+			if !t.IsArchived() {
+				filtered = append(filtered, t)
+			}
+		}
+		tasks = filtered
 	} else if status != "" {
 		tasks, err = s.repo.FindByStatus(task.Status(status))
 	} else {
