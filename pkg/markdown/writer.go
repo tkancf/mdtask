@@ -18,8 +18,8 @@ func WriteTaskFile(t *task.Task) ([]byte, error) {
 		Description: t.Description,
 		Aliases:     t.Aliases,
 		Tags:        t.Tags,
-		Created:     t.Created,
-		Updated:     t.Updated,
+		Created:     t.Created.Format("2006-01-02 15:04"),
+		Updated:     t.Updated.Format("2006-01-02 15:04"),
 	}
 
 	yamlData, err := yaml.Marshal(&fm)

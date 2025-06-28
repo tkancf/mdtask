@@ -11,13 +11,13 @@ import (
 )
 
 type FrontMatter struct {
-	ID          string    `yaml:"id"`
-	Aliases     []string  `yaml:"aliases"`
-	Tags        []string  `yaml:"tags"`
-	Created     time.Time `yaml:"created"`
-	Description string    `yaml:"description"`
-	Title       string    `yaml:"title"`
-	Updated     time.Time `yaml:"updated"`
+	ID          string   `yaml:"id"`
+	Aliases     []string `yaml:"aliases"`
+	Tags        []string `yaml:"tags"`
+	Created     string   `yaml:"created"`
+	Description string   `yaml:"description"`
+	Title       string   `yaml:"title"`
+	Updated     string   `yaml:"updated"`
 }
 
 func ParseTaskFile(content []byte) (*task.Task, error) {
@@ -31,14 +31,33 @@ func ParseTaskFile(content []byte) (*task.Task, error) {
 		return nil, fmt.Errorf("failed to parse YAML front matter: %w", err)
 	}
 
+	// Parse time strings
+	created, err := time.Parse("2006-01-02 15:04", fm.Created)
+	if err != nil {
+		// Try without time
+		created, err = time.Parse("2006-01-02", fm.Created)
+		if err != nil {
+			created = time.Now()
+		}
+	}
+	
+	updated, err := time.Parse("2006-01-02 15:04", fm.Updated)
+	if err != nil {
+		// Try without time
+		updated, err = time.Parse("2006-01-02", fm.Updated)
+		if err != nil {
+			updated = time.Now()
+		}
+	}
+
 	t := &task.Task{
 		ID:          fm.ID,
 		Title:       fm.Title,
 		Description: fm.Description,
 		Aliases:     fm.Aliases,
 		Tags:        fm.Tags,
-		Created:     fm.Created,
-		Updated:     fm.Updated,
+		Created:     created,
+		Updated:     updated,
 		Content:     body,
 	}
 
