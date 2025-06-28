@@ -102,6 +102,15 @@
                         </dd>
                     </div>
                     {{end}}
+                    {{if .Task.GetReminder}}
+                    <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+                        <dt class="text-sm font-medium text-gray-500">Reminder</dt>
+                        <dd class="mt-1 text-sm sm:mt-0 sm:col-span-2 {{if lt .Task.GetReminder.Unix (now).Unix}}text-orange-600{{else}}text-gray-900{{end}}">
+                            {{.Task.GetReminder.Format "2006-01-02 15:04"}}
+                            {{if lt .Task.GetReminder.Unix (now).Unix}}(past){{end}}
+                        </dd>
+                    </div>
+                    {{end}}
                     {{if .Task.Tags}}
                     <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
                         <dt class="text-sm font-medium text-gray-500">Tags</dt>

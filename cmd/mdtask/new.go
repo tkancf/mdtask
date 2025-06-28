@@ -26,6 +26,7 @@ var (
 	newTags        []string
 	newStatus      string
 	newDeadline    string
+	newReminder    string
 )
 
 func init() {
@@ -35,6 +36,7 @@ func init() {
 	newCmd.Flags().StringSliceVar(&newTags, "tags", []string{}, "Additional tags (comma-separated)")
 	newCmd.Flags().StringVarP(&newStatus, "status", "s", "", "Initial status (TODO, WIP, WAIT, SCHE, DONE)")
 	newCmd.Flags().StringVar(&newDeadline, "deadline", "", "Deadline (YYYY-MM-DD)")
+	newCmd.Flags().StringVar(&newReminder, "reminder", "", "Reminder (YYYY-MM-DD HH:MM or YYYY-MM-DD)")
 }
 
 func runNew(cmd *cobra.Command, args []string) error {
@@ -123,6 +125,21 @@ func runNew(cmd *cobra.Command, args []string) error {
 			return fmt.Errorf("invalid deadline format: %w", err)
 		}
 		t.SetDeadline(deadline)
+	}
+
+	if newReminder != "" {
+		// Try parsing with time first
+		reminder, err := time.Parse("2006-01-02 15:04", newReminder)
+		if err != nil {
+			// Try parsing date only
+			reminder, err = time.Parse("2006-01-02", newReminder)
+			if err != nil {
+				return fmt.Errorf("invalid reminder format (use YYYY-MM-DD HH:MM or YYYY-MM-DD): %w", err)
+			}
+			// Set default time to 9:00 AM for date-only reminders
+			reminder = time.Date(reminder.Year(), reminder.Month(), reminder.Day(), 9, 0, 0, 0, reminder.Location())
+		}
+		t.SetReminder(reminder)
 	}
 
 	paths, _ := cmd.Flags().GetStringSlice("paths")

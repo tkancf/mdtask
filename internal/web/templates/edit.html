@@ -87,6 +87,15 @@
             </div>
             
             <div>
+                <label for="reminder" class="block text-sm font-medium text-gray-700">
+                    Reminder
+                </label>
+                <input type="datetime-local" name="reminder" id="reminder" 
+                       {{if .Task.GetReminder}}value="{{(.Task.GetReminder.Format "2006-01-02T15:04")}}"{{end}}
+                       class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm">
+            </div>
+            
+            <div>
                 <label for="tags" class="block text-sm font-medium text-gray-700">
                     Tags (comma-separated)
                 </label>

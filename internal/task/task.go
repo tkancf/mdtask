@@ -152,3 +152,43 @@ func (t *Task) IsManagedTask() bool {
 	}
 	return false
 }
+
+func (t *Task) GetReminder() *time.Time {
+	for _, tag := range t.Tags {
+		if len(tag) > 16 && tag[:16] == "mdtask/reminder/" {
+			dateTimeStr := tag[16:]
+			// Try parsing with time first
+			if reminder, err := time.Parse("2006-01-02T15:04", dateTimeStr); err == nil {
+				return &reminder
+			}
+			// Fall back to date only
+			if reminder, err := time.Parse("2006-01-02", dateTimeStr); err == nil {
+				return &reminder
+			}
+		}
+	}
+	return nil
+}
+
+func (t *Task) SetReminder(reminder time.Time) {
+	newTags := []string{}
+	for _, tag := range t.Tags {
+		if len(tag) < 16 || tag[:16] != "mdtask/reminder/" {
+			newTags = append(newTags, tag)
+		}
+	}
+	
+	reminderTag := "mdtask/reminder/" + reminder.Format("2006-01-02T15:04")
+	newTags = append(newTags, reminderTag)
+	t.Tags = newTags
+}
+
+func (t *Task) RemoveReminder() {
+	newTags := []string{}
+	for _, tag := range t.Tags {
+		if len(tag) < 16 || tag[:16] != "mdtask/reminder/" {
+			newTags = append(newTags, tag)
+		}
+	}
+	t.Tags = newTags
+}

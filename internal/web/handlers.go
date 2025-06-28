@@ -182,6 +182,14 @@ func (s *Server) handleNewTask(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
+		// Set reminder
+		reminderStr := r.FormValue("reminder")
+		if reminderStr != "" {
+			if reminder, err := time.Parse("2006-01-02T15:04", reminderStr); err == nil {
+				t.SetReminder(reminder)
+			}
+		}
+
 		// Add tags
 		tagsStr := r.FormValue("tags")
 		if tagsStr != "" {
@@ -330,6 +338,17 @@ func (s *Server) handleEditTask(w http.ResponseWriter, r *http.Request) {
 		} else {
 			// Clear deadline if empty
 			t.RemoveDeadline()
+		}
+
+		// Update reminder
+		reminderStr := r.FormValue("reminder")
+		if reminderStr != "" {
+			if reminder, err := time.Parse("2006-01-02T15:04", reminderStr); err == nil {
+				t.SetReminder(reminder)
+			}
+		} else {
+			// Clear reminder if empty
+			t.RemoveReminder()
 		}
 
 		err = s.repo.Update(t)
