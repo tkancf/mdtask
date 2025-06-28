@@ -47,6 +47,39 @@
         <h1 class="text-3xl font-bold text-gray-900 mb-8">Dashboard</h1>
         
         <!-- Statistics Cards -->
+        <!-- Today's Statistics -->
+        <div class="bg-white shadow rounded-lg mb-6 p-6">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">📊 Today's Progress</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Created</dt>
+                    <dd class="mt-1 text-2xl font-semibold text-indigo-600">{{.CreatedToday}}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Completed</dt>
+                    <dd class="mt-1 text-2xl font-semibold text-green-600">{{.CompletedToday}}</dd>
+                </div>
+                <div>
+                    <dt class="text-sm font-medium text-gray-500">Updated</dt>
+                    <dd class="mt-1 text-2xl font-semibold text-gray-600">{{.UpdatedToday}}</dd>
+                </div>
+            </div>
+            {{if .OverdueTasks}}
+            <div class="mt-4 p-3 bg-red-50 rounded-md">
+                <p class="text-sm text-red-800">
+                    <span class="font-medium">⚠️ {{.OverdueTasks}} overdue task(s)</span>
+                </p>
+            </div>
+            {{end}}
+            {{if .UpcomingTasks}}
+            <div class="mt-2 p-3 bg-yellow-50 rounded-md">
+                <p class="text-sm text-yellow-800">
+                    <span class="font-medium">📅 {{.UpcomingTasks}} task(s) due this week</span>
+                </p>
+            </div>
+            {{end}}
+        </div>
+
         <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
             <div class="bg-white overflow-hidden shadow rounded-lg">
                 <div class="px-4 py-5 sm:p-6">
