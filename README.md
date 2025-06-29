@@ -79,13 +79,25 @@ updated: YYYY-MM-DD HH:MM
 git clone https://github.com/tkan/mdtask.git
 cd mdtask
 
-# npm依存関係をインストールしてCSSをビルド
+# 依存関係のインストールとビルド
+make
+
+# または個別に実行
 npm install
 npm run build-css
-
-# バイナリをビルド
 go build -o mdtask
 ```
+
+### Makefileターゲット
+
+- `make` - 依存関係のインストール、CSS生成、バイナリビルド
+- `make build` - バイナリのビルド（CSS生成含む）
+- `make css` - CSSのみビルド
+- `make watch` - CSS変更の監視（開発用）
+- `make test` - テストの実行
+- `make release` - 全プラットフォーム向けリリースビルド
+- `make clean` - ビルド成果物のクリーン
+- `make install` - ローカルインストール（/usr/local/bin）
 
 ### 開発モード
 
