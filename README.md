@@ -57,6 +57,9 @@ updated: YYYY-MM-DD HH:MM
 - mdtaskはWebブラウザインターフェイスを提供する
     - `mdtask web` - WebUIの起動（デフォルトポート: 7000、自動ポート切替機能付き）
     - ダッシュボード、タスク管理、検索機能を含む直感的なUI
+- mdtaskはMCP (Model Context Protocol) サーバーを提供する
+    - `mdtask mcp` - MCPサーバーの起動（AI assistants向け）
+    - Claude DesktopなどのMCP対応ツールからタスクを管理可能
 - mdtaskの設定
     - TOML形式の設定ファイルをサポート（.mdtask.toml、mdtask.toml、~/.config/mdtask/config.toml、~/.mdtask.toml）
     - 設定可能な項目：
@@ -65,6 +68,8 @@ updated: YYYY-MM-DD HH:MM
         - `task.default_status` - 新規タスクのデフォルトステータス
         - `web.port` - WebUIのデフォルトポート番号
         - `web.open_browser` - WebUI起動時のブラウザ自動起動設定
+        - `mcp.enabled` - MCPサーバーの有効/無効
+        - `mcp.allowed_paths` - MCPサーバーがアクセス可能な追加パス
 
 ## インストール
 
@@ -120,6 +125,7 @@ go run main.go web
 - **バックエンド**: Go 1.19+
   - Cobra (CLI framework)
   - Chi (HTTP router)
+  - mark3labs/mcp-go (MCP implementation)
 - **フロントエンド**: 
   - TypeScript (型安全なJavaScript)
   - Vite (高速なビルドツール)
@@ -127,3 +133,38 @@ go run main.go web
 - **ビルドツール**: 
   - Make (ビルド自動化)
   - npm (パッケージ管理)
+
+## MCP (Model Context Protocol) サーバー
+
+mdtaskはMCPサーバーを内蔵しており、Claude DesktopなどのMCP対応AIアシスタントからタスクを管理できます。
+
+### MCP設定
+
+Claude Desktopで使用する場合は、`claude_desktop_config.json`に以下を追加：
+
+```json
+{
+  "mcpServers": {
+    "mdtask": {
+      "command": "/path/to/mdtask",
+      "args": ["mcp"],
+      "cwd": "/path/to/your/tasks"
+    }
+  }
+}
+```
+
+### 利用可能なMCPツール
+
+- `list_tasks` - タスクの一覧表示（ステータスフィルタ、アーカイブ表示対応）
+- `create_task` - 新規タスクの作成
+- `update_task` - タスクの更新（タイトル、説明、ステータス、タグ）
+- `search_tasks` - タスクの検索
+- `archive_task` - タスクのアーカイブ
+- `get_task` - 特定タスクの詳細取得
+- `get_statistics` - タスク統計の取得
+
+### 利用可能なMCPリソース
+
+- `tasks` - アクティブなタスクのMarkdown形式リスト
+- `statistics` - タスク統計情報（JSON形式）

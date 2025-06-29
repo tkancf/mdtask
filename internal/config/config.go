@@ -18,6 +18,9 @@ type Config struct {
 	
 	// Web server settings
 	Web WebConfig `toml:"web"`
+	
+	// MCP server settings
+	MCP MCPConfig `toml:"mcp"`
 }
 
 // TaskConfig contains task-related configuration
@@ -47,6 +50,15 @@ type WebConfig struct {
 	OpenBrowser bool `toml:"open_browser"`
 }
 
+// MCPConfig contains MCP server configuration
+type MCPConfig struct {
+	// Whether MCP server is enabled
+	Enabled bool `toml:"enabled"`
+	
+	// Additional allowed paths for MCP server
+	AllowedPaths []string `toml:"allowed_paths"`
+}
+
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
 	return &Config{
@@ -58,6 +70,10 @@ func DefaultConfig() *Config {
 		Web: WebConfig{
 			Port:        7000,
 			OpenBrowser: true,
+		},
+		MCP: MCPConfig{
+			Enabled:      true,
+			AllowedPaths: []string{},
 		},
 	}
 }

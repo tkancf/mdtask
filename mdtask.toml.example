@@ -32,3 +32,13 @@ port = 7000
 # Whether to open browser automatically when starting web server
 # Default: true
 open_browser = true
+
+[mcp]
+# Whether MCP server is enabled
+# Default: true
+enabled = true
+
+# Additional paths that MCP server can access
+# This is useful if you want the MCP server to manage tasks in multiple locations
+# Default: [] (uses only the main paths)
+allowed_paths = []
