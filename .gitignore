@@ -39,3 +39,8 @@ Thumbs.db
 # Node.js dependencies
 node_modules/
 package-lock.json
+# CSS output (generated from Tailwind)
+internal/web/static/css/style.css
+
+# JavaScript output (generated from TypeScript/Vite)
+internal/web/static/js/

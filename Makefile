@@ -1,4 +1,4 @@
-.PHONY: all build clean deps css watch test release
+.PHONY: all build clean deps css js watch test release
 
 # Variables
 BINARY_NAME=mdtask
@@ -7,7 +7,7 @@ CSS_INPUT=internal/web/static/css/input.css
 CSS_OUTPUT=internal/web/static/css/style.css
 
 # Default target
-all: deps css build
+all: deps css js build
 
 # Install dependencies
 deps:
@@ -19,13 +19,18 @@ css:
 	@echo "Building CSS..."
 	@npm run build-css
 
+# Build JavaScript
+js:
+	@echo "Building JavaScript..."
+	@npm run build-js
+
 # Watch CSS (for development)
 watch:
 	@echo "Watching CSS..."
 	@npm run watch-css
 
 # Build binary
-build: css
+build: css js
 	@echo "Building binary..."
 	@go build -o $(BINARY_NAME) .
 
@@ -35,7 +40,7 @@ test:
 	@go test ./...
 
 # Build for release (all platforms)
-release: css
+release: css js
 	@echo "Building release binaries..."
 	@mkdir -p dist
 	
@@ -67,7 +72,7 @@ clean:
 	@rm -f $(CSS_OUTPUT)
 
 # Development mode - build and run
-dev: css
+dev: css js
 	@echo "Starting in development mode..."
 	@go run main.go web
 

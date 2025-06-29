@@ -71,7 +71,7 @@ updated: YYYY-MM-DD HH:MM
 ### 前提条件
 
 - Go 1.19以上
-- Node.js 16以上（WebUIのスタイル生成用）
+- Node.js 16以上（WebUIのスタイルとJavaScript生成用）
 
 ### ソースからビルド
 
@@ -84,15 +84,16 @@ make
 
 # または個別に実行
 npm install
-npm run build-css
+npm run build
 go build -o mdtask
 ```
 
 ### Makefileターゲット
 
-- `make` - 依存関係のインストール、CSS生成、バイナリビルド
-- `make build` - バイナリのビルド（CSS生成含む）
+- `make` - 依存関係のインストール、CSS/JavaScript生成、バイナリビルド
+- `make build` - バイナリのビルド（CSS/JavaScript生成含む）
 - `make css` - CSSのみビルド
+- `make js` - JavaScriptのみビルド（TypeScriptのコンパイル）
 - `make watch` - CSS変更の監視（開発用）
 - `make test` - テストの実行
 - `make release` - 全プラットフォーム向けリリースビルド
@@ -101,12 +102,28 @@ go build -o mdtask
 
 ### 開発モード
 
-開発中はCSSの変更を監視できます：
+開発中はCSS/JavaScriptの変更を監視できます：
 
 ```bash
 # CSSの変更を監視
 npm run watch-css
 
-# 別のターミナルでGoアプリケーションを実行
+# 別のターミナルでTypeScript/JavaScriptの変更を監視
+npm run dev-js
+
+# さらに別のターミナルでGoアプリケーションを実行
 go run main.go web
 ```
+
+### 技術スタック
+
+- **バックエンド**: Go 1.19+
+  - Cobra (CLI framework)
+  - Chi (HTTP router)
+- **フロントエンド**: 
+  - TypeScript (型安全なJavaScript)
+  - Vite (高速なビルドツール)
+  - Tailwind CSS (ユーティリティファーストCSS)
+- **ビルドツール**: 
+  - Make (ビルド自動化)
+  - npm (パッケージ管理)

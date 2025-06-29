@@ -1,4 +1,1 @@
-// App JavaScript
-document.addEventListener('DOMContentLoaded', function() {
-    // Add any interactive features here
-});
+document.addEventListener("DOMContentLoaded",()=>{o()});function o(){document.querySelectorAll(".delete-btn").forEach(e=>{e.addEventListener("click",t=>{confirm("Are you sure you want to delete this task?")||t.preventDefault()})}),document.querySelectorAll(".task-form").forEach(e=>{e.addEventListener("submit",t=>{const n=e.querySelector('input[name="title"]');n&&!n.value.trim()&&(t.preventDefault(),alert("Title is required"))})}),document.querySelectorAll("textarea.auto-resize").forEach(e=>{e.addEventListener("input",()=>{e.style.height="auto",e.style.height=`${e.scrollHeight}px`}),e.dispatchEvent(new Event("input"))}),document.querySelectorAll(".tag-link").forEach(e=>{e.addEventListener("click",t=>{t.preventDefault();const n=e.dataset.tag;n&&(window.location.href=`/?tags=${encodeURIComponent(n)}`)})})}

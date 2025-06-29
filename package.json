@@ -5,10 +5,15 @@
   "scripts": {
     "build-css": "tailwindcss -i ./internal/web/static/css/input.css -o ./internal/web/static/css/style.css --minify",
     "watch-css": "tailwindcss -i ./internal/web/static/css/input.css -o ./internal/web/static/css/style.css --watch",
-    "build": "npm run build-css && go build -o mdtask",
+    "build-js": "vite build",
+    "dev-js": "vite",
+    "build": "npm run build-css && npm run build-js && go build -o mdtask",
     "dev": "npm run watch-css"
   },
   "devDependencies": {
-    "tailwindcss": "^3.4.1"
+    "@types/node": "^24.0.7",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5.8.3",
+    "vite": "^7.0.0"
   }
 }
