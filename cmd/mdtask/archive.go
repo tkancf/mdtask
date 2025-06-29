@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/tkan/mdtask/internal/repository"
-	"github.com/tkan/mdtask/pkg/markdown"
+	"github.com/tkancf/mdtask/internal/repository"
+	"github.com/tkancf/mdtask/pkg/markdown"
 )
 
 var archiveCmd = &cobra.Command{

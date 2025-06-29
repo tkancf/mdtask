@@ -5,9 +5,9 @@ import (
 	"log"
 
 	"github.com/spf13/cobra"
-	"github.com/tkan/mdtask/internal/config"
-	mcpserver "github.com/tkan/mdtask/internal/mcp"
-	"github.com/tkan/mdtask/internal/repository"
+	"github.com/tkancf/mdtask/internal/config"
+	mcpserver "github.com/tkancf/mdtask/internal/mcp"
+	"github.com/tkancf/mdtask/internal/repository"
 )
 
 var mcpCmd = &cobra.Command{

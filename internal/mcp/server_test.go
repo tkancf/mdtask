@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/tkan/mdtask/internal/config"
-	"github.com/tkan/mdtask/internal/errors"
-	"github.com/tkan/mdtask/internal/task"
+	"github.com/tkancf/mdtask/internal/config"
+	"github.com/tkancf/mdtask/internal/errors"
+	"github.com/tkancf/mdtask/internal/task"
 )
 
 type mockRepository struct {

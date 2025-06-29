@@ -1,7 +1,7 @@
 package repository
 
 import (
-	"github.com/tkan/mdtask/internal/task"
+	"github.com/tkancf/mdtask/internal/task"
 )
 
 // Repository defines the interface for task storage operations

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tkan/mdtask/internal/task"
+	"github.com/tkancf/mdtask/internal/task"
 )
 
 func setupTestRepo(t *testing.T) (*TaskRepository, string) {

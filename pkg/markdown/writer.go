@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tkan/mdtask/internal/constants"
-	"github.com/tkan/mdtask/internal/task"
+	"github.com/tkancf/mdtask/internal/constants"
+	"github.com/tkancf/mdtask/internal/task"
 	"gopkg.in/yaml.v3"
 )
 

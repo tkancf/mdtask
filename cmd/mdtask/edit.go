@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-	"github.com/tkan/mdtask/internal/repository"
+	"github.com/tkancf/mdtask/internal/repository"
 )
 
 var editCmd = &cobra.Command{

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/tkan/mdtask/cmd/mdtask"
+	"github.com/tkancf/mdtask/cmd/mdtask"
 )
 
 func main() {

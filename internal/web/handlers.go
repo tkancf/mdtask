@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tkan/mdtask/internal/config"
-	"github.com/tkan/mdtask/internal/errors"
-	"github.com/tkan/mdtask/internal/task"
-	"github.com/tkan/mdtask/pkg/markdown"
+	"github.com/tkancf/mdtask/internal/config"
+	"github.com/tkancf/mdtask/internal/errors"
+	"github.com/tkancf/mdtask/internal/task"
+	"github.com/tkancf/mdtask/pkg/markdown"
 )
 
 type PageData struct {

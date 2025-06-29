@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/tkan/mdtask/internal/constants"
-	"github.com/tkan/mdtask/internal/task"
+	"github.com/tkancf/mdtask/internal/constants"
+	"github.com/tkancf/mdtask/internal/task"
 )
 
 // parseTaskForm extracts task data from HTTP form

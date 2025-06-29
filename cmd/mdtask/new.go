@@ -8,9 +8,9 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/tkan/mdtask/internal/config"
-	"github.com/tkan/mdtask/internal/repository"
-	"github.com/tkan/mdtask/internal/task"
+	"github.com/tkancf/mdtask/internal/config"
+	"github.com/tkancf/mdtask/internal/repository"
+	"github.com/tkancf/mdtask/internal/task"
 )
 
 var newCmd = &cobra.Command{

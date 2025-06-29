@@ -4,7 +4,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tkan/mdtask/internal/constants"
+	"github.com/tkancf/mdtask/internal/constants"
 )
 
 type Status string

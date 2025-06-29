@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/tkan/mdtask/internal/constants"
-	"github.com/tkan/mdtask/internal/errors"
-	"github.com/tkan/mdtask/internal/task"
+	"github.com/tkancf/mdtask/internal/constants"
+	"github.com/tkancf/mdtask/internal/errors"
+	"github.com/tkancf/mdtask/internal/task"
 )
 
 // parseFormTags extracts and normalizes tags from form input

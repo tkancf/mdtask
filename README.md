@@ -81,7 +81,7 @@ updated: YYYY-MM-DD HH:MM
 ### ソースからビルド
 
 ```bash
-git clone https://github.com/tkan/mdtask.git
+git clone https://github.com/tkancf/mdtask.git
 cd mdtask
 
 # 依存関係のインストールとビルド

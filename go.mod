@@ -1,4 +1,4 @@
-module github.com/tkan/mdtask
+module github.com/tkancf/mdtask
 
 go 1.24.4
 

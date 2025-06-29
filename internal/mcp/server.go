@@ -8,9 +8,9 @@ import (
 
 	"github.com/mark3labs/mcp-go/mcp"
 	"github.com/mark3labs/mcp-go/server"
-	"github.com/tkan/mdtask/internal/config"
-	"github.com/tkan/mdtask/internal/repository"
-	"github.com/tkan/mdtask/internal/task"
+	"github.com/tkancf/mdtask/internal/config"
+	"github.com/tkancf/mdtask/internal/repository"
+	"github.com/tkancf/mdtask/internal/task"
 )
 
 type Server struct {

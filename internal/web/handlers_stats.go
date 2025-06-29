@@ -3,8 +3,8 @@ package web
 import (
 	"time"
 
-	"github.com/tkan/mdtask/internal/constants"
-	"github.com/tkan/mdtask/internal/task"
+	"github.com/tkancf/mdtask/internal/constants"
+	"github.com/tkancf/mdtask/internal/task"
 )
 
 type DashboardStats struct {

@@ -8,10 +8,10 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/tkan/mdtask/internal/config"
-	"github.com/tkan/mdtask/internal/constants"
-	"github.com/tkan/mdtask/internal/repository"
-	"github.com/tkan/mdtask/internal/web"
+	"github.com/tkancf/mdtask/internal/config"
+	"github.com/tkancf/mdtask/internal/constants"
+	"github.com/tkancf/mdtask/internal/repository"
+	"github.com/tkancf/mdtask/internal/web"
 )
 
 var webCmd = &cobra.Command{
