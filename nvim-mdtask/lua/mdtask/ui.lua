@@ -82,7 +82,7 @@ function M.show_task_list(tasks, title)
       local line = vim.api.nvim_get_current_line()
       local task_id = line:match('%(([^)]+)%)')
       if task_id then
-        vim.api.nvim_win_close(win, true)
+        -- Don't close the window, just hide it temporarily
         require('mdtask.tasks').edit(task_id)
       end
     end, opts)
@@ -96,7 +96,7 @@ function M.show_task_list(tasks, title)
     end, opts)
     
     vim.keymap.set('n', 'n', function()
-      vim.api.nvim_win_close(win, true)
+      -- Don't close the window, just hide it temporarily
       require('mdtask.tasks').new()
     end, opts)
     
@@ -153,7 +153,13 @@ function M.show_task_form(callback, task)
   
   -- Show input prompts sequentially
   vim.ui.input({ prompt = 'Title: ', default = form_data.title }, function(title)
-    if not title then return end  -- User cancelled
+    if not title then 
+      -- User cancelled - return to task list
+      if M.task_list_win and vim.api.nvim_win_is_valid(M.task_list_win) then
+        vim.api.nvim_set_current_win(M.task_list_win)
+      end
+      return 
+    end
     -- Validate title
     title = title:match('^%s*(.-)%s*$') -- trim whitespace
     if title == '' then
@@ -163,7 +169,13 @@ function M.show_task_form(callback, task)
     form_data.title = title
     
     vim.ui.input({ prompt = 'Description: ', default = form_data.description }, function(description)
-      if description == nil then return end  -- User cancelled
+      if description == nil then 
+        -- User cancelled - return to task list
+        if M.task_list_win and vim.api.nvim_win_is_valid(M.task_list_win) then
+          vim.api.nvim_set_current_win(M.task_list_win)
+        end
+        return 
+      end
       form_data.description = description
       
       vim.ui.select(
@@ -175,7 +187,13 @@ function M.show_task_form(callback, task)
           end,
         },
         function(status)
-          if not status then return end  -- User cancelled
+          if not status then 
+            -- User cancelled - return to task list
+            if M.task_list_win and vim.api.nvim_win_is_valid(M.task_list_win) then
+              vim.api.nvim_set_current_win(M.task_list_win)
+            end
+            return 
+          end
           form_data.status = status
           
           -- Skip tags input and go directly to content editor
@@ -199,7 +217,7 @@ function M.show_content_editor(form_data, callback)
   local content_lines = {
     '# Task Content',
     '# Press <C-s> to save and create task',
-    '# Press <C-c> or :q to cancel',
+    '# Press <C-c>, <Esc> or :q to cancel',
     '# ---',
     '',
   }
@@ -259,8 +277,21 @@ function M.show_content_editor(form_data, callback)
   -- Cancel shortcuts
   vim.keymap.set('n', '<C-c>', function()
     vim.api.nvim_win_close(win, true)
+    -- Return to task list if it exists
+    if M.task_list_win and vim.api.nvim_win_is_valid(M.task_list_win) then
+      vim.api.nvim_set_current_win(M.task_list_win)
+    end
   end, opts)
   vim.keymap.set('i', '<C-c>', '<Esc>:q<CR>', opts)
+  
+  -- Add Esc key to cancel and return to task list
+  vim.keymap.set('n', '<Esc>', function()
+    vim.api.nvim_win_close(win, true)
+    -- Return to task list if it exists
+    if M.task_list_win and vim.api.nvim_win_is_valid(M.task_list_win) then
+      vim.api.nvim_set_current_win(M.task_list_win)
+    end
+  end, opts)
   -- Removed 'q' mapping - use :q to quit like normal windows
 end
 
