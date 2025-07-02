@@ -25,12 +25,6 @@ function M.execute_mdtask(args, callback, stdin_input)
     end
   end
   
-  -- Debug output
-  local cmd_str = cmd .. ' ' .. table.concat(full_args, ' ')
-  print('Executing: ' .. cmd_str)
-  if stdin_input then
-    print('With stdin: ' .. stdin_input)
-  end
   
   if callback then
     -- Async execution
@@ -49,7 +43,6 @@ function M.execute_mdtask(args, callback, stdin_input)
               table.insert(stdout_data, line)
             end
           end
-          print('stdout: ' .. vim.inspect(data))
         end
       end,
       on_stderr = function(_, data)
@@ -59,17 +52,11 @@ function M.execute_mdtask(args, callback, stdin_input)
               table.insert(stderr_data, line)
             end
           end
-          print('stderr: ' .. vim.inspect(data))
         end
       end,
       on_exit = function(_, code)
-        print('Exit code: ' .. code)
-        
         local stdout_output = table.concat(stdout_data, '\n')
         local stderr_output = table.concat(stderr_data, '\n')
-        
-        print('Final stdout: ' .. stdout_output)
-        print('Final stderr: ' .. stderr_output)
         
         -- For mdtask new command, success is determined by exit code
         -- Even if there's stderr output (like interactive prompts), it might still succeed

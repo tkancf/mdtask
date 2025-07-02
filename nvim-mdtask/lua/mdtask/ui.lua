@@ -186,8 +186,6 @@ function M.save_task_form(buf, win, callback)
     task_data.content = table.concat(content_lines, '\n')
   end
   
-  print('Task data parsed: ' .. vim.inspect(task_data))
-  
   vim.api.nvim_win_close(win, true)
   
   if callback then

@@ -119,8 +119,6 @@ function M.new()
       end
     end
     
-    print('Creating task with args: ' .. vim.inspect(args))
-    
     utils.execute_mdtask(args, function(err, output)
       if err then
         utils.notify('Failed to create task: ' .. err, vim.log.levels.ERROR)
