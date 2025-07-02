@@ -168,3 +168,34 @@ Claude Desktopで使用する場合は、`claude_desktop_config.json`に以下�
 
 - `tasks` - アクティブなタスクのMarkdown形式リスト
 - `statistics` - タスク統計情報（JSON形式）
+
+## Neovimプラグイン
+
+mdtaskには、Neovimから直接タスクを管理できるプラグインが含まれています。
+
+### インストール
+
+プラグインは`nvim-mdtask`サブディレクトリにあります。
+
+**lazy.nvimの場合:**
+```lua
+{
+  dir = '~/path/to/mdtask/nvim-mdtask',  -- mdtaskリポジトリのパスを指定
+  name = 'mdtask.nvim',
+  dependencies = {
+    'nvim-telescope/telescope.nvim', -- optional
+  },
+  config = function()
+    require('mdtask').setup()
+  end,
+}
+```
+
+### 主な機能
+
+- `:MdTask` - タスク一覧表示
+- `:MdTask new` - 新規タスク作成
+- `:MdTask search <query>` - タスク検索
+- `:MdTask status <status>` - ステータス別表示
+
+詳細は[nvim-mdtask/README.md](nvim-mdtask/README.md)を参照してください。

@@ -25,7 +25,28 @@ A Neovim plugin for seamless integration with [mdtask](https://github.com/tkancf
 
 ```lua
 {
-  'tkancf/mdtask.nvim',
+  'tkancf/mdtask',
+  submodules = false,
+  dir = vim.fn.stdpath('data') .. '/lazy/mdtask',
+  dependencies = {
+    'nvim-telescope/telescope.nvim', -- optional
+  },
+  config = function()
+    -- Add the nvim-mdtask subdirectory to runtimepath
+    vim.opt.rtp:append(vim.fn.stdpath('data') .. '/lazy/mdtask/nvim-mdtask')
+    require('mdtask').setup({
+      -- configuration options
+    })
+  end,
+}
+```
+
+Or more simply, if you only want the Neovim plugin:
+
+```lua
+{
+  dir = '~/path/to/mdtask/nvim-mdtask',  -- Adjust path to your mdtask clone
+  name = 'mdtask.nvim',
   dependencies = {
     'nvim-telescope/telescope.nvim', -- optional
   },
@@ -41,7 +62,8 @@ A Neovim plugin for seamless integration with [mdtask](https://github.com/tkancf
 
 ```lua
 use {
-  'tkancf/mdtask.nvim',
+  'tkancf/mdtask',
+  rtp = 'nvim-mdtask',
   requires = {
     'nvim-telescope/telescope.nvim', -- optional
   },
