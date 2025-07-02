@@ -39,6 +39,11 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Redirect to kanban board as default view
+	http.Redirect(w, r, "/kanban", http.StatusSeeOther)
+}
+
+func (s *Server) handleDashboard(w http.ResponseWriter, r *http.Request) {
 	tasks, err := s.repo.FindActive()
 	if err != nil {
 		handleError(w, errors.InternalError("Failed to load tasks", err))
