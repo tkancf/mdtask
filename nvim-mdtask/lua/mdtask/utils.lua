@@ -131,6 +131,7 @@ function M.format_task(task)
   local status = task.status or 'TODO'
   local title = task.title or 'Untitled'
   local id = task.id or ''
+  local description = task.description
   
   -- Add deadline indicator if present
   local deadline_indicator = ''
@@ -143,8 +144,17 @@ function M.format_task(task)
     end
   end
   
-  -- Format: - STATUS: Title [deadline] (id)
-  return string.format('- %s: %s%s (%s)', status, title, deadline_indicator, id)
+  -- Format main line and description line(s)
+  local lines = {}
+  -- Main line: - STATUS: Title [deadline] (id)
+  table.insert(lines, string.format('- %s: %s%s (%s)', status, title, deadline_indicator, id))
+  
+  -- Add description as indented line if present
+  if description and description ~= '' then
+    table.insert(lines, string.format('    - %s', description))
+  end
+  
+  return lines
 end
 
 -- Get task by ID

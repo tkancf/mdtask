@@ -23,6 +23,18 @@ function M.show_task_list(tasks, title)
     local task_id = current_line:match('%(([^)]+)%)')
     if task_id then
       M.saved_task_id = task_id
+    else
+      -- If on description line, check previous line
+      local row = M.saved_cursor_pos[1]
+      if row > 1 then
+        local prev_line = vim.api.nvim_buf_get_lines(M.task_list_buf, row - 2, row - 1, false)[1]
+        if prev_line then
+          task_id = prev_line:match('%(([^)]+)%)')
+          if task_id then
+            M.saved_task_id = task_id
+          end
+        end
+      end
     end
   end
   
@@ -54,7 +66,10 @@ function M.show_task_list(tasks, title)
   local lines = { title, string.rep('─', #title), '' }
   
   for _, task in ipairs(tasks) do
-    table.insert(lines, utils.format_task(task))
+    local task_lines = utils.format_task(task)
+    for _, line in ipairs(task_lines) do
+      table.insert(lines, line)
+    end
   end
   
   -- Add empty lines to fill the window if needed
@@ -85,6 +100,26 @@ function M.show_task_list(tasks, title)
     local opts = { buffer = buf, silent = true }
     local actions = require('mdtask.actions')
     
+    -- Helper function to get task ID from current or nearby lines
+    local function get_task_id_from_position()
+      local line = vim.api.nvim_get_current_line()
+      local task_id = line:match('%(([^)]+)%)')
+      
+      -- If not found, check if we're on a description line
+      if not task_id then
+        local row = vim.api.nvim_win_get_cursor(0)[1]
+        for i = row - 1, math.max(1, row - 3), -1 do
+          local check_line = vim.api.nvim_buf_get_lines(buf, i - 1, i, false)[1]
+          if check_line then
+            task_id = check_line:match('%(([^)]+)%)')
+            if task_id then break end
+          end
+        end
+      end
+      
+      return task_id
+    end
+    
     -- Add 'q' mapping for quick quit
     vim.keymap.set('n', 'q', function()
       vim.api.nvim_win_close(win, true)
@@ -92,8 +127,7 @@ function M.show_task_list(tasks, title)
     
     -- <CR> to open the task file
     vim.keymap.set('n', '<CR>', function()
-      local line = vim.api.nvim_get_current_line()
-      local task_id = line:match('%(([^)]+)%)')
+      local task_id = get_task_id_from_position()
       if task_id then
         -- Open the task file in current window
         vim.api.nvim_win_close(win, true)
@@ -122,8 +156,7 @@ function M.show_task_list(tasks, title)
     
     -- se to edit task
     vim.keymap.set('n', 'se', function()
-      local line = vim.api.nvim_get_current_line()
-      local task_id = line:match('%(([^)]+)%)')
+      local task_id = get_task_id_from_position()
       if task_id then
         require('mdtask.tasks').edit(task_id)
       end
@@ -141,8 +174,7 @@ function M.show_task_list(tasks, title)
     
     -- sd to mark as DONE
     vim.keymap.set('n', 'sd', function()
-      local line = vim.api.nvim_get_current_line()
-      local task_id = line:match('%(([^)]+)%)')
+      local task_id = get_task_id_from_position()
       if task_id then
         actions.quick_status_update(task_id, 'DONE')
       end
@@ -150,8 +182,7 @@ function M.show_task_list(tasks, title)
     
     -- st to mark as TODO
     vim.keymap.set('n', 'st', function()
-      local line = vim.api.nvim_get_current_line()
-      local task_id = line:match('%(([^)]+)%)')
+      local task_id = get_task_id_from_position()
       if task_id then
         actions.quick_status_update(task_id, 'TODO')
       end
@@ -159,8 +190,7 @@ function M.show_task_list(tasks, title)
     
     -- sw to mark as WIP
     vim.keymap.set('n', 'sw', function()
-      local line = vim.api.nvim_get_current_line()
-      local task_id = line:match('%(([^)]+)%)')
+      local task_id = get_task_id_from_position()
       if task_id then
         actions.quick_status_update(task_id, 'WIP')
       end
