@@ -143,8 +143,8 @@ function M.format_task(task)
     end
   end
   
-  -- Format: [STATUS] Title [deadline] (id)
-  return string.format('[%-4s] %s%s (%s)', status, title, deadline_indicator, id)
+  -- Format: - STATUS: Title [deadline] (id)
+  return string.format('- %s: %s%s (%s)', status, title, deadline_indicator, id)
 end
 
 -- Get task by ID
