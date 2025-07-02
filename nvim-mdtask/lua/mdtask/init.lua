@@ -73,4 +73,10 @@ M.edit = tasks.edit
 M.archive = tasks.archive
 M.open_web = tasks.open_web
 
+-- Actions API
+local actions = require('mdtask.actions')
+M.toggle_status = actions.toggle_task_status
+M.quick_archive = actions.quick_archive
+M.preview = actions.preview_task
+
 return M

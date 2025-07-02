@@ -3,7 +3,7 @@ local M = {}
 local config = require('mdtask.config')
 
 -- Execute mdtask command and return result
-function M.execute_mdtask(args, callback, stdin_input)
+function M.execute_mdtask(args, callback, stdin_input, skip_json)
   local cfg = config.get()
   local cmd = cfg.mdtask_path
   local full_args = {}
@@ -15,6 +15,12 @@ function M.execute_mdtask(args, callback, stdin_input)
     for _, arg in ipairs(args) do
       table.insert(full_args, arg)
     end
+  end
+  
+  -- Add JSON format flag by default for commands that support it
+  if not skip_json and (args[1] == 'list' or args[1] == 'search' or args[1] == 'get') then
+    table.insert(full_args, '--format')
+    table.insert(full_args, 'json')
   end
   
   -- Add path arguments if configured
@@ -126,6 +132,7 @@ function M.format_task(task)
     TODO = '○',
     WIP = '◐',
     WAIT = '◔',
+    SCHE = '◷',
     DONE = '●',
   }
   
@@ -133,7 +140,18 @@ function M.format_task(task)
   local title = task.title or 'Untitled'
   local id = task.id or ''
   
-  return string.format('%s %s (%s)', icon, title, id)
+  -- Add deadline indicator if present
+  local deadline_indicator = ''
+  if task.deadline then
+    local deadline_date = vim.fn.strptime('%Y-%m-%dT%H:%M:%SZ', task.deadline)
+    if deadline_date and deadline_date < os.time() then
+      deadline_indicator = ' ⚠️'  -- Overdue
+    else
+      deadline_indicator = ' 📅'  -- Has deadline
+    end
+  end
+  
+  return string.format('%s %s%s (%s)', icon, title, deadline_indicator, id)
 end
 
 -- Get task by ID
@@ -143,7 +161,7 @@ function M.get_task_by_id(task_id, callback)
     return nil
   end
   
-  local args = {'list', '--format', 'json', '--all'}
+  local args = {'get', task_id}
   
   M.execute_mdtask(args, function(err, output)
     if err then
@@ -151,15 +169,12 @@ function M.get_task_by_id(task_id, callback)
       return
     end
     
-    local tasks = M.parse_json(output)
-    for _, task in ipairs(tasks) do
-      if task.id == task_id then
-        if callback then callback(nil, task) end
-        return
-      end
+    local task = M.parse_json(output)
+    if task then
+      if callback then callback(nil, task) end
+    else
+      if callback then callback('Task not found: ' .. task_id, nil) end
     end
-    
-    if callback then callback('Task not found: ' .. task_id, nil) end
   end)
 end
 

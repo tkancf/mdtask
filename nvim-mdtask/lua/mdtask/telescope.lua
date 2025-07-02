@@ -21,7 +21,7 @@ function M.tasks(opts)
   local cfg = config.get()
   
   -- Get tasks
-  local args = {'list', '--format', 'json'}
+  local args = {'list'}
   if opts.status then
     table.insert(args, '--status')
     table.insert(args, opts.status)
@@ -135,7 +135,7 @@ function M.search()
       return
     end
     
-    local args = {'search', query, '--format', 'json'}
+    local args = {'search', query}
     
     utils.execute_mdtask(args, function(err, output)
       if err then

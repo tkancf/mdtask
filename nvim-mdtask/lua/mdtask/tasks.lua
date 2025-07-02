@@ -6,7 +6,7 @@ local config = require('mdtask.config')
 
 -- List all tasks
 function M.list()
-  local args = {'list', '--format', 'json'}
+  local args = {'list'}
   
   utils.execute_mdtask(args, function(err, output)
     if err then
@@ -15,7 +15,7 @@ function M.list()
     end
     
     local tasks = utils.parse_json(output)
-    if #tasks == 0 then
+    if not tasks or #tasks == 0 then
       utils.notify('No tasks found')
       return
     end
@@ -30,7 +30,7 @@ function M.list_by_status(status)
     status = 'todo'
   end
   
-  local args = {'list', '--status', status, '--format', 'json'}
+  local args = {'list', '--status', status}
   
   utils.execute_mdtask(args, function(err, output)
     if err then
@@ -39,7 +39,7 @@ function M.list_by_status(status)
     end
     
     local tasks = utils.parse_json(output)
-    if #tasks == 0 then
+    if not tasks or #tasks == 0 then
       utils.notify('No ' .. status .. ' tasks found')
       return
     end
@@ -59,7 +59,7 @@ function M.search(query)
     return
   end
   
-  local args = {'search', query, '--format', 'json'}
+  local args = {'search', query}
   
   utils.execute_mdtask(args, function(err, output)
     if err then
@@ -68,7 +68,7 @@ function M.search(query)
     end
     
     local tasks = utils.parse_json(output)
-    if #tasks == 0 then
+    if not tasks or #tasks == 0 then
       utils.notify('No tasks found for: ' .. query)
       return
     end

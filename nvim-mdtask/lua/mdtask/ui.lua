@@ -34,6 +34,7 @@ function M.show_task_list(tasks, title)
   
   -- Set up keymaps
   local opts = { buffer = buf, silent = true }
+  local actions = require('mdtask.actions')
   
   vim.keymap.set('n', 'q', function()
     vim.api.nvim_win_close(win, true)
@@ -49,11 +50,7 @@ function M.show_task_list(tasks, title)
   end, opts)
   
   vim.keymap.set('n', 'a', function()
-    local line = vim.api.nvim_get_current_line()
-    local task_id = line:match('%(([^)]+)%)')
-    if task_id then
-      require('mdtask.tasks').archive(task_id)
-    end
+    actions.quick_archive()
   end, opts)
   
   vim.keymap.set('n', 'r', function()
@@ -65,6 +62,39 @@ function M.show_task_list(tasks, title)
     require('mdtask.tasks').new()
   end, opts)
   
+  -- New keybindings
+  vim.keymap.set('n', 's', function()
+    actions.toggle_task_status()
+  end, opts)
+  
+  vim.keymap.set('n', 'p', function()
+    actions.preview_task()
+  end, opts)
+  
+  vim.keymap.set('n', 'd', function()
+    local line = vim.api.nvim_get_current_line()
+    local task_id = line:match('%(([^)]+)%)')
+    if task_id then
+      actions.quick_status_update(task_id, 'DONE')
+    end
+  end, opts)
+  
+  vim.keymap.set('n', 't', function()
+    local line = vim.api.nvim_get_current_line()
+    local task_id = line:match('%(([^)]+)%)')
+    if task_id then
+      actions.quick_status_update(task_id, 'TODO')
+    end
+  end, opts)
+  
+  vim.keymap.set('n', 'w', function()
+    local line = vim.api.nvim_get_current_line()
+    local task_id = line:match('%(([^)]+)%)')
+    if task_id then
+      actions.quick_status_update(task_id, 'WIP')
+    end
+  end, opts)
+  
   -- Position cursor after header
   vim.api.nvim_win_set_cursor(win, {4, 0})
   
@@ -72,6 +102,11 @@ function M.show_task_list(tasks, title)
   vim.api.nvim_echo({
     {'Keys: ', 'Normal'},
     {'<CR>', 'Special'}, {' edit, ', 'Normal'},
+    {'p', 'Special'}, {' preview, ', 'Normal'},
+    {'s', 'Special'}, {' toggle status, ', 'Normal'},
+    {'d', 'Special'}, {' done, ', 'Normal'},
+    {'t', 'Special'}, {' todo, ', 'Normal'},
+    {'w', 'Special'}, {' wip, ', 'Normal'},
     {'a', 'Special'}, {' archive, ', 'Normal'},
     {'n', 'Special'}, {' new, ', 'Normal'},
     {'r', 'Special'}, {' refresh, ', 'Normal'},
@@ -209,5 +244,64 @@ function M.show_content_editor(form_data, callback)
   end, opts)
 end
 
+
+-- Show task preview in floating window
+function M.show_task_preview(task)
+  local lines = {
+    '# ' .. task.title,
+    '',
+    '**Status:** ' .. task.status,
+    '**ID:** ' .. task.id,
+    '**Created:** ' .. task.created:sub(1, 10),
+    '**Updated:** ' .. task.updated:sub(1, 10),
+  }
+  
+  if task.description and task.description ~= '' then
+    table.insert(lines, '')
+    table.insert(lines, '**Description:** ' .. task.description)
+  end
+  
+  if task.deadline then
+    table.insert(lines, '**Deadline:** ' .. task.deadline:sub(1, 10))
+  end
+  
+  if task.reminder then
+    table.insert(lines, '**Reminder:** ' .. task.reminder:sub(1, 16))
+  end
+  
+  if task.tags and #task.tags > 0 then
+    table.insert(lines, '')
+    table.insert(lines, '**Tags:** ' .. table.concat(task.tags, ', '))
+  end
+  
+  if task.content and task.content ~= '' then
+    table.insert(lines, '')
+    table.insert(lines, '---')
+    table.insert(lines, '')
+    for line in task.content:gmatch("[^\n]*") do
+      table.insert(lines, line)
+    end
+  end
+  
+  local buf, win = utils.create_float_win({
+    width = math.min(80, math.floor(vim.o.columns * 0.8)),
+    height = math.min(#lines + 2, math.floor(vim.o.lines * 0.8)),
+  })
+  
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+  vim.api.nvim_buf_set_option(buf, 'buftype', 'nofile')
+  vim.api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
+  vim.api.nvim_buf_set_option(buf, 'filetype', 'markdown')
+  
+  -- Set up keymaps
+  local opts = { buffer = buf, silent = true }
+  vim.keymap.set('n', 'q', function()
+    vim.api.nvim_win_close(win, true)
+  end, opts)
+  vim.keymap.set('n', '<Esc>', function()
+    vim.api.nvim_win_close(win, true)
+  end, opts)
+end
 
 return M
