@@ -119,13 +119,11 @@ function M.show_task_form(callback, task)
           if not status then return end  -- User cancelled
           form_data.status = status
           
-          vim.ui.input({ prompt = 'Tags (comma-separated): ', default = form_data.tags }, function(tags)
-            if tags == nil then return end  -- User cancelled
-            form_data.tags = tags
-            
-            -- Show content editor in a buffer
-            M.show_content_editor(form_data, callback)
-          end)
+          -- Skip tags input and go directly to content editor
+          form_data.tags = ''
+          
+          -- Show content editor in a buffer
+          M.show_content_editor(form_data, callback)
         end
       )
     end)
