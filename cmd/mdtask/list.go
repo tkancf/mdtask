@@ -1,6 +1,7 @@
 package mdtask
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -72,10 +73,18 @@ func runList(cmd *cobra.Command, args []string) error {
 	}
 
 	if len(tasks) == 0 {
-		fmt.Println("No tasks found.")
+		if outputFormat == "json" {
+			fmt.Println("[]")
+		} else {
+			fmt.Println("No tasks found.")
+		}
 		return nil
 	}
 
+	if outputFormat == "json" {
+		return printTasksJSON(tasks)
+	}
+	
 	printTasks(tasks)
 	return nil
 }
@@ -116,4 +125,43 @@ func truncate(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen-3] + "..."
+}
+
+// TaskJSON represents a task in JSON format
+type TaskJSON struct {
+	ID          string    `json:"id"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	Status      string    `json:"status"`
+	Tags        []string  `json:"tags"`
+	Created     time.Time `json:"created"`
+	Updated     time.Time `json:"updated"`
+	Deadline    *time.Time `json:"deadline,omitempty"`
+	Reminder    *time.Time `json:"reminder,omitempty"`
+	IsArchived  bool      `json:"is_archived"`
+	Content     string    `json:"content,omitempty"`
+}
+
+func printTasksJSON(tasks []*task.Task) error {
+	jsonTasks := make([]TaskJSON, len(tasks))
+	
+	for i, t := range tasks {
+		jsonTasks[i] = TaskJSON{
+			ID:          t.ID,
+			Title:       t.Title,
+			Description: t.Description,
+			Status:      string(t.GetStatus()),
+			Tags:        t.Tags,
+			Created:     t.Created,
+			Updated:     t.Updated,
+			Deadline:    t.GetDeadline(),
+			Reminder:    t.GetReminder(),
+			IsArchived:  t.IsArchived(),
+			Content:     t.Content,
+		}
+	}
+	
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(jsonTasks)
 }

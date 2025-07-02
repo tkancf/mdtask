@@ -1,7 +1,9 @@
 package mdtask
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
@@ -106,10 +108,20 @@ func runSearch(cmd *cobra.Command, args []string) error {
 
 	// Display results
 	if len(tasks) == 0 {
-		fmt.Println("No tasks found matching your criteria")
+		if outputFormat == "json" {
+			fmt.Println("[]")
+		} else {
+			fmt.Println("No tasks found matching your criteria")
+		}
 		return nil
 	}
 
+	// JSON output
+	if outputFormat == "json" {
+		return printSearchResultsJSON(tasks)
+	}
+
+	// Text output
 	fmt.Printf("Found %d task(s):\n\n", len(tasks))
 	
 	// Display search criteria
@@ -171,4 +183,41 @@ func runSearch(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// SearchResultJSON represents search results in JSON format
+type SearchResultJSON struct {
+	ID          string     `json:"id"`
+	Title       string     `json:"title"`
+	Description string     `json:"description"`
+	Status      string     `json:"status"`
+	Tags        []string   `json:"tags"`
+	Created     time.Time  `json:"created"`
+	Updated     time.Time  `json:"updated"`
+	Deadline    *time.Time `json:"deadline,omitempty"`
+	Reminder    *time.Time `json:"reminder,omitempty"`
+	IsArchived  bool       `json:"is_archived"`
+}
+
+func printSearchResultsJSON(tasks []*task.Task) error {
+	results := make([]SearchResultJSON, len(tasks))
+	
+	for i, t := range tasks {
+		results[i] = SearchResultJSON{
+			ID:          t.ID,
+			Title:       t.Title,
+			Description: t.Description,
+			Status:      string(t.GetStatus()),
+			Tags:        t.Tags,
+			Created:     t.Created,
+			Updated:     t.Updated,
+			Deadline:    t.GetDeadline(),
+			Reminder:    t.GetReminder(),
+			IsArchived:  t.IsArchived(),
+		}
+	}
+	
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(results)
 }
