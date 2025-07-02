@@ -414,14 +414,15 @@ func (s *Server) handleArchive(w http.ResponseWriter, r *http.Request) {
 // API handlers
 
 type APITaskResponse struct {
-	ID          string    `json:"id"`
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	Status      string    `json:"status"`
-	Tags        []string  `json:"tags"`
-	Created     time.Time `json:"created"`
-	Updated     time.Time `json:"updated"`
-	Content     string    `json:"content,omitempty"`
+	ID          string     `json:"id"`
+	Title       string     `json:"title"`
+	Description string     `json:"description"`
+	Status      string     `json:"status"`
+	Tags        []string   `json:"tags"`
+	Created     time.Time  `json:"created"`
+	Updated     time.Time  `json:"updated"`
+	Content     string     `json:"content,omitempty"`
+	Deadline    *time.Time `json:"deadline,omitempty"`
 }
 
 func (s *Server) handleAPITasks(w http.ResponseWriter, r *http.Request) {
@@ -446,11 +447,22 @@ func (s *Server) handleAPITasks(w http.ResponseWriter, r *http.Request) {
 			Tags:        t.Tags,
 			Created:     t.Created,
 			Updated:     t.Updated,
+			Deadline:    t.GetDeadline(),
 		}
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(response)
+}
+
+func removeDeadlineTag(tags []string) []string {
+	var result []string
+	for _, tag := range tags {
+		if !strings.HasPrefix(tag, "mdtask/deadline/") {
+			result = append(result, tag)
+		}
+	}
+	return result
 }
 
 func (s *Server) handleAPITask(w http.ResponseWriter, r *http.Request) {
@@ -473,6 +485,7 @@ func (s *Server) handleAPITask(w http.ResponseWriter, r *http.Request) {
 			Created:     t.Created,
 			Updated:     t.Updated,
 			Content:     t.Content,
+			Deadline:    t.GetDeadline(),
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -486,12 +499,53 @@ func (s *Server) handleAPITask(w http.ResponseWriter, r *http.Request) {
 		}
 
 		var updateRequest struct {
-			Status string `json:"status"`
+			Status      string   `json:"status"`
+			Title       string   `json:"title"`
+			Description string   `json:"description"`
+			Tags        []string `json:"tags"`
+			Deadline    *string  `json:"deadline"`
 		}
 		
 		if err := json.NewDecoder(r.Body).Decode(&updateRequest); err != nil {
 			http.Error(w, "Invalid JSON", http.StatusBadRequest)
 			return
+		}
+
+		// Update task fields
+		if updateRequest.Title != "" {
+			t.Title = updateRequest.Title
+		}
+		
+		if updateRequest.Description != "" || updateRequest.Title != "" {
+			// Description can be empty, so we update it if title is provided
+			t.Description = updateRequest.Description
+		}
+		
+		if updateRequest.Tags != nil {
+			// Preserve mdtask system tags
+			var systemTags []string
+			for _, tag := range t.Tags {
+				if tag == "mdtask" || strings.HasPrefix(tag, "mdtask/") {
+					systemTags = append(systemTags, tag)
+				}
+			}
+			// Combine system tags with new user tags
+			t.Tags = append(systemTags, updateRequest.Tags...)
+		}
+		
+		if updateRequest.Deadline != nil {
+			if *updateRequest.Deadline == "" {
+				// Clear deadline
+				t.Tags = removeDeadlineTag(t.Tags)
+			} else {
+				// Parse and set deadline
+				deadline, err := time.Parse("2006-01-02", *updateRequest.Deadline)
+				if err != nil {
+					http.Error(w, "Invalid deadline format", http.StatusBadRequest)
+					return
+				}
+				t.SetDeadline(deadline)
+			}
 		}
 
 		// Update task status
