@@ -91,11 +91,13 @@ function M.new()
       return
     end
     
-    -- Add description
-    if task_data.description and task_data.description ~= '' then
-      table.insert(args, '--description')
-      table.insert(args, task_data.description)
-    end
+    -- Add description (always provide this flag to avoid interactive prompts)
+    table.insert(args, '--description')
+    table.insert(args, task_data.description or '')
+    
+    -- Add content (always provide this flag to avoid interactive prompts)
+    table.insert(args, '--content')
+    table.insert(args, task_data.content or '')
     
     -- Add status
     if task_data.status and task_data.status ~= '' then

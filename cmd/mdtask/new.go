@@ -23,6 +23,7 @@ var newCmd = &cobra.Command{
 var (
 	newTitle       string
 	newDescription string
+	newContent     string
 	newTags        []string
 	newStatus      string
 	newDeadline    string
@@ -33,6 +34,7 @@ func init() {
 	rootCmd.AddCommand(newCmd)
 	newCmd.Flags().StringVarP(&newTitle, "title", "t", "", "Task title")
 	newCmd.Flags().StringVarP(&newDescription, "description", "d", "", "Task description")
+	newCmd.Flags().StringVarP(&newContent, "content", "c", "", "Task content")
 	newCmd.Flags().StringSliceVar(&newTags, "tags", []string{}, "Additional tags (comma-separated)")
 	newCmd.Flags().StringVarP(&newStatus, "status", "s", "", "Initial status (TODO, WIP, WAIT, SCHE, DONE)")
 	newCmd.Flags().StringVar(&newDeadline, "deadline", "", "Deadline (YYYY-MM-DD)")
@@ -77,7 +79,10 @@ func runNew(cmd *cobra.Command, args []string) error {
 	}
 
 	var content string
-	if cfg.Task.ContentTemplate != "" {
+	if newContent != "" {
+		// Use content from flag
+		content = newContent
+	} else if cfg.Task.ContentTemplate != "" {
 		// Use content template if available
 		content = cfg.Task.ContentTemplate
 		fmt.Println("\nUsing content template from configuration.")

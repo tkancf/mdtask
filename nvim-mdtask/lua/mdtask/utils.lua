@@ -3,7 +3,7 @@ local M = {}
 local config = require('mdtask.config')
 
 -- Execute mdtask command and return result
-function M.execute_mdtask(args, callback)
+function M.execute_mdtask(args, callback, stdin_input)
   local cfg = config.get()
   local cmd = cfg.mdtask_path
   local full_args = {}
@@ -28,51 +28,93 @@ function M.execute_mdtask(args, callback)
   -- Debug output
   local cmd_str = cmd .. ' ' .. table.concat(full_args, ' ')
   print('Executing: ' .. cmd_str)
+  if stdin_input then
+    print('With stdin: ' .. stdin_input)
+  end
   
   if callback then
     -- Async execution
-    local job_id = vim.fn.jobstart({cmd, unpack(full_args)}, {
+    local stdout_data = {}
+    local stderr_data = {}
+    
+    local job_opts = {
       stdout_buffered = true,
       stderr_buffered = true,
       cwd = vim.fn.getcwd(),
+      timeout = 10000,  -- 10 second timeout
       on_stdout = function(_, data)
         if data and #data > 0 then
-          local output = table.concat(data, '\n')
-          print('stdout: ' .. output)
-          callback(nil, output)
+          for _, line in ipairs(data) do
+            if line ~= '' then
+              table.insert(stdout_data, line)
+            end
+          end
+          print('stdout: ' .. vim.inspect(data))
         end
       end,
       on_stderr = function(_, data)
         if data and #data > 0 then
-          local error_output = table.concat(data, '\n')
-          print('stderr: ' .. error_output)
-          callback(error_output, nil)
+          for _, line in ipairs(data) do
+            if line ~= '' then
+              table.insert(stderr_data, line)
+            end
+          end
+          print('stderr: ' .. vim.inspect(data))
         end
       end,
       on_exit = function(_, code)
         print('Exit code: ' .. code)
-        if code ~= 0 then
-          callback('Command failed with exit code: ' .. code, nil)
+        
+        local stdout_output = table.concat(stdout_data, '\n')
+        local stderr_output = table.concat(stderr_data, '\n')
+        
+        print('Final stdout: ' .. stdout_output)
+        print('Final stderr: ' .. stderr_output)
+        
+        -- For mdtask new command, success is determined by exit code
+        -- Even if there's stderr output (like interactive prompts), it might still succeed
+        if code == 0 then
+          callback(nil, stdout_output)
         else
-          -- If no stdout was captured but command succeeded
-          callback(nil, '')
+          -- Command failed
+          local error_msg = stderr_output
+          if error_msg == '' then
+            error_msg = 'Command failed with exit code: ' .. code
+          end
+          callback(error_msg, nil)
         end
       end
-    })
+    }
+    
+    local job_id = vim.fn.jobstart({cmd, unpack(full_args)}, job_opts)
     
     if job_id == 0 then
       callback('Failed to start job', nil)
     elseif job_id == -1 then
       callback('Invalid command', nil)
+    elseif stdin_input then
+      -- Send stdin input to the job
+      vim.fn.chansend(job_id, stdin_input)
+      vim.fn.chanclose(job_id, 'stdin')
     end
   else
     -- Sync execution
-    local result = vim.fn.system({cmd, unpack(full_args)})
-    if vim.v.shell_error ~= 0 then
-      vim.notify('mdtask command failed: ' .. result, vim.log.levels.ERROR)
-      return nil
+    if stdin_input then
+      -- Use system with input
+      local result = vim.fn.system({cmd, unpack(full_args)}, stdin_input)
+      if vim.v.shell_error ~= 0 then
+        vim.notify('mdtask command failed: ' .. result, vim.log.levels.ERROR)
+        return nil
+      end
+      return result
+    else
+      local result = vim.fn.system({cmd, unpack(full_args)})
+      if vim.v.shell_error ~= 0 then
+        vim.notify('mdtask command failed: ' .. result, vim.log.levels.ERROR)
+        return nil
+      end
+      return result
     end
-    return result
   end
 end
 
