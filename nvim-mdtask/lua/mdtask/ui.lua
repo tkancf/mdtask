@@ -83,114 +83,129 @@ end
 function M.show_task_form(callback, task)
   task = task or {}
   
+  -- Store form data
+  local form_data = {
+    title = task.title or '',
+    description = task.description or '',
+    status = task.status or 'TODO',
+    tags = task.tags and table.concat(task.tags, ', ') or '',
+    content = task.content or ''
+  }
+  
+  -- Show input prompts sequentially
+  vim.ui.input({ prompt = 'Title: ', default = form_data.title }, function(title)
+    if not title then return end  -- User cancelled
+    -- Validate title
+    title = title:match('^%s*(.-)%s*$') -- trim whitespace
+    if title == '' then
+      utils.notify('Title is required', vim.log.levels.ERROR)
+      return
+    end
+    form_data.title = title
+    
+    vim.ui.input({ prompt = 'Description: ', default = form_data.description }, function(description)
+      if description == nil then return end  -- User cancelled
+      form_data.description = description
+      
+      vim.ui.select(
+        {'TODO', 'WIP', 'WAIT', 'SCHE', 'DONE'},
+        {
+          prompt = 'Status:',
+          format_item = function(item)
+            return item
+          end,
+        },
+        function(status)
+          if not status then return end  -- User cancelled
+          form_data.status = status
+          
+          vim.ui.input({ prompt = 'Tags (comma-separated): ', default = form_data.tags }, function(tags)
+            if tags == nil then return end  -- User cancelled
+            form_data.tags = tags
+            
+            -- Show content editor in a buffer
+            M.show_content_editor(form_data, callback)
+          end)
+        end
+      )
+    end)
+  end)
+end
+
+-- Show content editor in a floating window
+function M.show_content_editor(form_data, callback)
   local buf, win = utils.create_float_win({
     width = 80,
     height = 20,
   })
   
-  local form_lines = {
-    '# Task Form',
+  local content_lines = {
+    '# Task Content',
+    '# Press :wq or ZZ to save and create task',
+    '# Press :q! or ZQ to cancel',
+    '# ---',
     '',
-    'Title: ' .. (task.title or ''),
-    '',
-    'Description: ' .. (task.description or ''),
-    '',
-    'Status: ' .. (task.status or 'TODO'),
-    '',
-    'Tags: ' .. (task.tags and table.concat(task.tags, ', ') or ''),
-    '',
-    '# Content',
-    '',
-    (task.content or ''),
-    '',
-    '# Instructions',
-    '- Edit the fields above',
-    '- Press <C-s> to save',
-    '- Press <C-c> to cancel',
   }
   
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, form_lines)
-  vim.api.nvim_buf_set_option(buf, 'buftype', 'acwrite')
-  vim.api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
-  vim.api.nvim_buf_set_option(buf, 'filetype', 'markdown')
-  
-  -- Position cursor on title line
-  vim.api.nvim_win_set_cursor(win, {3, #'Title: '})
-  
-  -- Set up keymaps
-  local opts = { buffer = buf, silent = true }
-  
-  vim.keymap.set('n', '<C-s>', function()
-    M.save_task_form(buf, win, callback)
-  end, opts)
-  
-  vim.keymap.set('i', '<C-s>', function()
-    M.save_task_form(buf, win, callback)
-  end, opts)
-  
-  vim.keymap.set('n', '<C-c>', function()
-    vim.api.nvim_win_close(win, true)
-  end, opts)
-  
-  vim.keymap.set('i', '<C-c>', function()
-    vim.api.nvim_win_close(win, true)
-  end, opts)
-end
-
--- Save task form data
-function M.save_task_form(buf, win, callback)
-  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-  
-  local task_data = {}
-  local content_lines = {}
-  local in_content = false
-  
-  for _, line in ipairs(lines) do
-    local title_match = line:match('^Title: (.*)')
-    if title_match then
-      task_data.title = title_match:match('^%s*(.-)%s*$')  -- trim whitespace
-    end
-    
-    local desc_match = line:match('^Description: (.*)')
-    if desc_match then
-      task_data.description = desc_match:match('^%s*(.-)%s*$')
-    end
-    
-    local status_match = line:match('^Status: (.*)')
-    if status_match then
-      task_data.status = status_match:match('^%s*(.-)%s*$')
-    end
-    
-    local tags_match = line:match('^Tags: (.*)')
-    if tags_match then
-      local tags_str = tags_match:match('^%s*(.-)%s*$')
-      if tags_str and tags_str ~= '' then
-        task_data.tags = vim.split(tags_str, ',')
-        -- Trim whitespace from each tag
-        for i, tag in ipairs(task_data.tags) do
-          task_data.tags[i] = tag:match('^%s*(.-)%s*$')
-        end
-      end
-    end
-    
-    if line == '# Content' then
-      in_content = true
-    elseif line == '# Instructions' then
-      in_content = false
-    elseif in_content and line ~= '' then
+  -- Add existing content
+  if form_data.content and form_data.content ~= '' then
+    for line in form_data.content:gmatch("[^\n]*") do
       table.insert(content_lines, line)
     end
   end
   
-  if #content_lines > 0 then
-    task_data.content = table.concat(content_lines, '\n')
-  end
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, content_lines)
+  vim.api.nvim_buf_set_option(buf, 'buftype', 'acwrite')
+  vim.api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
+  vim.api.nvim_buf_set_option(buf, 'filetype', 'markdown')
+  vim.api.nvim_buf_set_option(buf, 'modifiable', true)
   
-  vim.api.nvim_win_close(win, true)
+  -- Set cursor to first content line
+  vim.api.nvim_win_set_cursor(win, {5, 0})
   
-  if callback then
-    callback(task_data)
-  end
+  -- Handle save
+  vim.api.nvim_create_autocmd('BufWriteCmd', {
+    buffer = buf,
+    callback = function()
+      -- Get content (skip header lines)
+      local lines = vim.api.nvim_buf_get_lines(buf, 4, -1, false)
+      form_data.content = table.concat(lines, '\n'):gsub('^\n+', ''):gsub('\n+$', '')
+      
+      -- Parse tags into array
+      local tags = {}
+      if form_data.tags and form_data.tags ~= '' then
+        for tag in form_data.tags:gmatch('[^,]+') do
+          table.insert(tags, tag:match('^%s*(.-)%s*$'))
+        end
+      end
+      
+      -- Close window
+      vim.api.nvim_win_close(win, true)
+      
+      -- Trigger callback with parsed data
+      if callback then
+        callback({
+          title = form_data.title,
+          description = form_data.description,
+          status = form_data.status,
+          tags = tags,
+          content = form_data.content
+        })
+      end
+      
+      -- Mark as saved to prevent vim warnings
+      vim.api.nvim_buf_set_option(buf, 'modified', false)
+    end
+  })
+  
+  -- Handle quit without save
+  vim.api.nvim_create_autocmd('BufWipeout', {
+    buffer = buf,
+    callback = function()
+      -- Window already closed
+    end
+  })
 end
+
 
 return M
