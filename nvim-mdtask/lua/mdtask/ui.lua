@@ -60,7 +60,7 @@ function M.show_task_list(tasks, title)
   -- Add help text at the bottom
   local win_width = vim.api.nvim_win_get_width(win)
   table.insert(lines, string.rep('─', math.min(win_width - 2, 80)))
-  table.insert(lines, 'Keys: <CR> edit  p preview  s toggle  d done  t todo  w wip  a archive  n new  r refresh')
+  table.insert(lines, 'Keys: <CR> edit  p preview  s toggle  d done  t todo  w wip  a archive  n new  r refresh  q quit')
   
   -- Set buffer content
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
@@ -76,7 +76,10 @@ function M.show_task_list(tasks, title)
     local opts = { buffer = buf, silent = true }
     local actions = require('mdtask.actions')
     
-    -- Removed 'q' mapping - use :q to quit like normal windows
+    -- Add 'q' mapping for quick quit
+    vim.keymap.set('n', 'q', function()
+      vim.api.nvim_win_close(win, true)
+    end, opts)
     
     vim.keymap.set('n', '<CR>', function()
       local line = vim.api.nvim_get_current_line()
@@ -292,7 +295,17 @@ function M.show_content_editor(form_data, callback)
       vim.api.nvim_set_current_win(M.task_list_win)
     end
   end, opts)
-  -- Removed 'q' mapping - use :q to quit like normal windows
+  
+  -- Add 'q' mapping for quick quit (only in normal mode, when not modified)
+  vim.keymap.set('n', 'q', function()
+    if not vim.api.nvim_buf_get_option(buf, 'modified') then
+      vim.api.nvim_win_close(win, true)
+      -- Return to task list if it exists
+      if M.task_list_win and vim.api.nvim_win_is_valid(M.task_list_win) then
+        vim.api.nvim_set_current_win(M.task_list_win)
+      end
+    end
+  end, opts)
 end
 
 
@@ -347,7 +360,10 @@ function M.show_task_preview(task)
   
   -- Set up keymaps
   local opts = { buffer = buf, silent = true }
-  -- Removed 'q' mapping - use :q to quit like normal windows
+  -- Add 'q' mapping for quick quit
+  vim.keymap.set('n', 'q', function()
+    vim.api.nvim_win_close(win, true)
+  end, opts)
   vim.keymap.set('n', '<Esc>', function()
     vim.api.nvim_win_close(win, true)
   end, opts)
