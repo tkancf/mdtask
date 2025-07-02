@@ -10,20 +10,36 @@ M.task_list_win = nil
 function M.show_task_list(tasks, title)
   title = title or 'mdtask Tasks'
   
-  -- Calculate window size - almost full screen with some padding
-  local win_width = vim.api.nvim_get_option('columns')
-  local win_height = vim.api.nvim_get_option('lines')
+  -- Check if we have an existing valid window and buffer
+  local reuse_window = false
+  if M.task_list_win and vim.api.nvim_win_is_valid(M.task_list_win) and
+     M.task_list_buf and vim.api.nvim_buf_is_valid(M.task_list_buf) then
+    reuse_window = true
+  end
   
-  local width = math.floor(win_width * 0.9)  -- 90% of screen width
-  local height = math.floor(win_height * 0.85)  -- 85% of screen height
-  
-  local buf, win = utils.create_float_win({
-    width = width,
-    height = height,
-  })
-  
-  M.task_list_buf = buf
-  M.task_list_win = win
+  local buf, win
+  if reuse_window then
+    -- Reuse existing window and buffer
+    buf = M.task_list_buf
+    win = M.task_list_win
+    -- Make buffer modifiable for updating
+    vim.api.nvim_buf_set_option(buf, 'modifiable', true)
+  else
+    -- Calculate window size - almost full screen with some padding
+    local win_width = vim.api.nvim_get_option('columns')
+    local win_height = vim.api.nvim_get_option('lines')
+    
+    local width = math.floor(win_width * 0.9)  -- 90% of screen width
+    local height = math.floor(win_height * 0.85)  -- 85% of screen height
+    
+    buf, win = utils.create_float_win({
+      width = width,
+      height = height,
+    })
+    
+    M.task_list_buf = buf
+    M.task_list_win = win
+  end
   
   -- Prepare lines for display
   local lines = { title, string.rep('─', #title), '' }
@@ -34,82 +50,89 @@ function M.show_task_list(tasks, title)
   
   -- Add empty lines to fill the window if needed
   local content_lines = #lines
-  local available_height = height - 4  -- Reserve space for help text
+  -- Get window height dynamically for reused windows
+  local win_height = vim.api.nvim_win_get_height(win)
+  local available_height = win_height - 4  -- Reserve space for help text
   while #lines < available_height do
     table.insert(lines, '')
   end
   
   -- Add help text at the bottom
-  table.insert(lines, string.rep('─', math.min(width - 2, 80)))
+  local win_width = vim.api.nvim_win_get_width(win)
+  table.insert(lines, string.rep('─', math.min(win_width - 2, 80)))
   table.insert(lines, 'Keys: <CR> edit  p preview  s toggle  d done  t todo  w wip  a archive  n new  r refresh')
   
   -- Set buffer content
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
   vim.api.nvim_buf_set_option(buf, 'modifiable', false)
-  vim.api.nvim_buf_set_option(buf, 'buftype', 'nofile')
-  vim.api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
-  vim.api.nvim_buf_set_option(buf, 'filetype', 'mdtask')
   
-  -- Set up keymaps
-  local opts = { buffer = buf, silent = true }
-  local actions = require('mdtask.actions')
+  -- Only set these options for new buffers
+  if not reuse_window then
+    vim.api.nvim_buf_set_option(buf, 'buftype', 'nofile')
+    vim.api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
+    vim.api.nvim_buf_set_option(buf, 'filetype', 'mdtask')
+    
+    -- Set up keymaps
+    local opts = { buffer = buf, silent = true }
+    local actions = require('mdtask.actions')
+    
+    -- Removed 'q' mapping - use :q to quit like normal windows
+    
+    vim.keymap.set('n', '<CR>', function()
+      local line = vim.api.nvim_get_current_line()
+      local task_id = line:match('%(([^)]+)%)')
+      if task_id then
+        vim.api.nvim_win_close(win, true)
+        require('mdtask.tasks').edit(task_id)
+      end
+    end, opts)
   
-  -- Removed 'q' mapping - use :q to quit like normal windows
-  
-  vim.keymap.set('n', '<CR>', function()
-    local line = vim.api.nvim_get_current_line()
-    local task_id = line:match('%(([^)]+)%)')
-    if task_id then
+    vim.keymap.set('n', 'a', function()
+      actions.quick_archive()
+    end, opts)
+    
+    vim.keymap.set('n', 'r', function()
+      require('mdtask.tasks').list()
+    end, opts)
+    
+    vim.keymap.set('n', 'n', function()
       vim.api.nvim_win_close(win, true)
-      require('mdtask.tasks').edit(task_id)
-    end
-  end, opts)
-  
-  vim.keymap.set('n', 'a', function()
-    actions.quick_archive()
-  end, opts)
-  
-  vim.keymap.set('n', 'r', function()
-    require('mdtask.tasks').list()
-  end, opts)
-  
-  vim.keymap.set('n', 'n', function()
-    vim.api.nvim_win_close(win, true)
-    require('mdtask.tasks').new()
-  end, opts)
-  
-  -- New keybindings
-  vim.keymap.set('n', 's', function()
-    actions.toggle_task_status()
-  end, opts)
-  
-  vim.keymap.set('n', 'p', function()
-    actions.preview_task()
-  end, opts)
-  
-  vim.keymap.set('n', 'd', function()
-    local line = vim.api.nvim_get_current_line()
-    local task_id = line:match('%(([^)]+)%)')
-    if task_id then
-      actions.quick_status_update(task_id, 'DONE')
-    end
-  end, opts)
-  
-  vim.keymap.set('n', 't', function()
-    local line = vim.api.nvim_get_current_line()
-    local task_id = line:match('%(([^)]+)%)')
-    if task_id then
-      actions.quick_status_update(task_id, 'TODO')
-    end
-  end, opts)
-  
-  vim.keymap.set('n', 'w', function()
-    local line = vim.api.nvim_get_current_line()
-    local task_id = line:match('%(([^)]+)%)')
-    if task_id then
-      actions.quick_status_update(task_id, 'WIP')
-    end
-  end, opts)
+      require('mdtask.tasks').new()
+    end, opts)
+    
+    -- New keybindings
+    vim.keymap.set('n', 's', function()
+      actions.toggle_task_status()
+    end, opts)
+    
+    vim.keymap.set('n', 'p', function()
+      actions.preview_task()
+    end, opts)
+    
+    vim.keymap.set('n', 'd', function()
+      local line = vim.api.nvim_get_current_line()
+      local task_id = line:match('%(([^)]+)%)')
+      if task_id then
+        actions.quick_status_update(task_id, 'DONE')
+      end
+    end, opts)
+    
+    vim.keymap.set('n', 't', function()
+      local line = vim.api.nvim_get_current_line()
+      local task_id = line:match('%(([^)]+)%)')
+      if task_id then
+        actions.quick_status_update(task_id, 'TODO')
+      end
+    end, opts)
+    
+    vim.keymap.set('n', 'w', function()
+      local line = vim.api.nvim_get_current_line()
+      local task_id = line:match('%(([^)]+)%)')
+      if task_id then
+        actions.quick_status_update(task_id, 'WIP')
+      end
+    end, opts)
+  end  -- end of if not reuse_window
   
   -- Position cursor after header
   vim.api.nvim_win_set_cursor(win, {4, 0})
