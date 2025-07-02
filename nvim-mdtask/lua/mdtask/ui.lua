@@ -141,8 +141,8 @@ function M.show_content_editor(form_data, callback)
   
   local content_lines = {
     '# Task Content',
-    '# Press :wq or ZZ to save and create task',
-    '# Press :q! or ZQ to cancel',
+    '# Press <C-s> to save and create task',
+    '# Press <C-c> or :q to cancel',
     '# ---',
     '',
   }
@@ -155,7 +155,7 @@ function M.show_content_editor(form_data, callback)
   end
   
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, content_lines)
-  vim.api.nvim_buf_set_option(buf, 'buftype', 'acwrite')
+  vim.api.nvim_buf_set_option(buf, 'buftype', 'nofile')
   vim.api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
   vim.api.nvim_buf_set_option(buf, 'filetype', 'markdown')
   vim.api.nvim_buf_set_option(buf, 'modifiable', true)
@@ -163,48 +163,52 @@ function M.show_content_editor(form_data, callback)
   -- Set cursor to first content line
   vim.api.nvim_win_set_cursor(win, {5, 0})
   
-  -- Handle save
-  vim.api.nvim_create_autocmd('BufWriteCmd', {
-    buffer = buf,
-    callback = function()
-      -- Get content (skip header lines)
-      local lines = vim.api.nvim_buf_get_lines(buf, 4, -1, false)
-      form_data.content = table.concat(lines, '\n'):gsub('^\n+', ''):gsub('\n+$', '')
-      
-      -- Parse tags into array
-      local tags = {}
-      if form_data.tags and form_data.tags ~= '' then
-        for tag in form_data.tags:gmatch('[^,]+') do
-          table.insert(tags, tag:match('^%s*(.-)%s*$'))
-        end
+  -- Create save function
+  local function save_and_close()
+    -- Get content (skip header lines)
+    local lines = vim.api.nvim_buf_get_lines(buf, 4, -1, false)
+    form_data.content = table.concat(lines, '\n'):gsub('^\n+', ''):gsub('\n+$', '')
+    
+    -- Parse tags into array
+    local tags = {}
+    if form_data.tags and form_data.tags ~= '' then
+      for tag in form_data.tags:gmatch('[^,]+') do
+        table.insert(tags, tag:match('^%s*(.-)%s*$'))
       end
-      
-      -- Close window
-      vim.api.nvim_win_close(win, true)
-      
-      -- Trigger callback with parsed data
-      if callback then
-        callback({
-          title = form_data.title,
-          description = form_data.description,
-          status = form_data.status,
-          tags = tags,
-          content = form_data.content
-        })
-      end
-      
-      -- Mark as saved to prevent vim warnings
-      vim.api.nvim_buf_set_option(buf, 'modified', false)
     end
-  })
+    
+    -- Close window
+    vim.api.nvim_win_close(win, true)
+    
+    -- Trigger callback with parsed data
+    if callback then
+      callback({
+        title = form_data.title,
+        description = form_data.description,
+        status = form_data.status,
+        tags = tags,
+        content = form_data.content
+      })
+    end
+  end
   
-  -- Handle quit without save
-  vim.api.nvim_create_autocmd('BufWipeout', {
-    buffer = buf,
-    callback = function()
-      -- Window already closed
+  -- Set up keymaps
+  local opts = { buffer = buf, silent = true }
+  
+  -- Save shortcuts
+  vim.keymap.set('n', '<C-s>', save_and_close, opts)
+  vim.keymap.set('i', '<C-s>', save_and_close, opts)
+  
+  -- Cancel shortcuts
+  vim.keymap.set('n', '<C-c>', function()
+    vim.api.nvim_win_close(win, true)
+  end, opts)
+  vim.keymap.set('i', '<C-c>', '<Esc>:q<CR>', opts)
+  vim.keymap.set('n', 'q', function()
+    if not vim.api.nvim_buf_get_option(buf, 'modified') then
+      vim.api.nvim_win_close(win, true)
     end
-  })
+  end, opts)
 end
 
 
