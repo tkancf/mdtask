@@ -5,6 +5,8 @@ local config = require('mdtask.config')
 
 M.task_list_buf = nil
 M.task_list_win = nil
+M.saved_cursor_pos = nil  -- Save cursor position for refresh
+M.saved_task_id = nil  -- Save current task ID for cursor restoration
 
 -- Show task list in a floating window
 function M.show_task_list(tasks, title)
@@ -15,6 +17,13 @@ function M.show_task_list(tasks, title)
   if M.task_list_win and vim.api.nvim_win_is_valid(M.task_list_win) and
      M.task_list_buf and vim.api.nvim_buf_is_valid(M.task_list_buf) then
     reuse_window = true
+    -- Save current cursor position and task ID before refresh
+    M.saved_cursor_pos = vim.api.nvim_win_get_cursor(M.task_list_win)
+    local current_line = vim.api.nvim_get_current_line()
+    local task_id = current_line:match('%(([^)]+)%)')
+    if task_id then
+      M.saved_task_id = task_id
+    end
   end
   
   local buf, win
@@ -158,8 +167,33 @@ function M.show_task_list(tasks, title)
     end, opts)
   end  -- end of if not reuse_window
   
-  -- Position cursor after header
-  vim.api.nvim_win_set_cursor(win, {4, 0})
+  -- Position cursor
+  if reuse_window and M.saved_task_id then
+    -- Try to find the line with the saved task ID
+    local found = false
+    local lines_content = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+    for i, line in ipairs(lines_content) do
+      if line:match('%((' .. vim.pesc(M.saved_task_id) .. ')%)') then
+        vim.api.nvim_win_set_cursor(win, {i, 0})
+        found = true
+        break
+      end
+    end
+    
+    -- If task not found, try to restore by line number
+    if not found and M.saved_cursor_pos then
+      local max_line = vim.api.nvim_buf_line_count(buf)
+      local row = math.min(M.saved_cursor_pos[1], max_line)
+      vim.api.nvim_win_set_cursor(win, {row, 0})
+    end
+    
+    -- Clear saved position and task ID
+    M.saved_cursor_pos = nil
+    M.saved_task_id = nil
+  else
+    -- Default position after header
+    vim.api.nvim_win_set_cursor(win, {4, 0})
+  end
 end
 
 -- Show task creation/editing form
