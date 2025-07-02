@@ -8,56 +8,109 @@ local ui = require('mdtask.ui')
 function M.setup(opts)
   config.setup(opts or {})
   
-  -- Create user commands
-  vim.api.nvim_create_user_command('MdTaskList', function()
-    tasks.list()
-  end, { desc = 'List all mdtask tasks' })
-  
-  vim.api.nvim_create_user_command('MdTaskNew', function()
-    tasks.new()
-  end, { desc = 'Create a new mdtask task' })
-  
-  vim.api.nvim_create_user_command('MdTaskSearch', function(opts)
-    tasks.search(opts.args)
-  end, { nargs = '*', desc = 'Search mdtask tasks' })
-  
-  vim.api.nvim_create_user_command('MdTaskStatus', function(opts)
-    tasks.list_by_status(opts.args)
-  end, { nargs = '?', desc = 'List tasks by status' })
-  
-  vim.api.nvim_create_user_command('MdTaskWeb', function()
-    tasks.open_web()
-  end, { desc = 'Open mdtask web interface' })
-  
-  vim.api.nvim_create_user_command('MdTaskEdit', function(opts)
-    tasks.edit(opts.args)
-  end, { nargs = '?', desc = 'Edit a task' })
-  
-  vim.api.nvim_create_user_command('MdTaskArchive', function(opts)
-    tasks.archive(opts.args)
-  end, { nargs = '?', desc = 'Archive a task' })
-  
-  vim.api.nvim_create_user_command('MdTaskDebug', function()
-    local cfg = config.get()
-    print('Config: ' .. vim.inspect(cfg))
-    print('Current directory: ' .. vim.fn.getcwd())
-    print('mdtask executable: ' .. vim.fn.executable('mdtask'))
+  -- Create main command with subcommands
+  vim.api.nvim_create_user_command('MdTask', function(opts)
+    local subcommand = opts.fargs[1]
+    local args = vim.list_slice(opts.fargs, 2)
     
-    -- Test mdtask command
-    local result = vim.fn.system('mdtask --help')
-    print('mdtask help result: ' .. result)
-  end, { desc = 'Debug mdtask configuration' })
-  
-  vim.api.nvim_create_user_command('MdTaskTestCreate', function()
-    print('Testing direct command execution...')
-    local result = vim.fn.system('mdtask new --title "test from debug" --status TODO')
-    print('Direct command result: ' .. vim.inspect(result))
-    print('Exit code: ' .. vim.v.shell_error)
+    if not subcommand then
+      tasks.list()
+      return
+    end
     
-    -- List files to see if anything was created
-    local ls_result = vim.fn.system('ls -la *.md 2>/dev/null || echo "No .md files found"')
-    print('Files: ' .. ls_result)
-  end, { desc = 'Test mdtask new command directly' })
+    local subcommands = {
+      list = function()
+        if args[1] then
+          -- If argument provided, use it as status filter
+          tasks.list_by_status(args[1])
+        else
+          tasks.list()
+        end
+      end,
+      new = tasks.new,
+      search = function()
+        tasks.search(table.concat(args, ' '))
+      end,
+      edit = function()
+        tasks.edit(args[1])
+      end,
+      archive = function()
+        tasks.archive(args[1])
+      end,
+      web = tasks.open_web,
+      status = function()
+        tasks.list_by_status(args[1] or 'todo')
+      end,
+      toggle = function()
+        local actions = require('mdtask.actions')
+        actions.toggle_task_status(args[1])
+      end,
+      preview = function()
+        local actions = require('mdtask.actions')
+        actions.preview_task(args[1])
+      end,
+      help = function()
+        local help_text = [[
+MdTask - Task management commands
+
+Usage: :MdTask <subcommand> [args]
+
+Subcommands:
+  list [status]    List tasks (optionally filtered by status)
+  new              Create a new task
+  search <query>   Search tasks
+  edit <id>        Edit a task
+  archive <id>     Archive a task
+  web              Open web interface
+  status <status>  List tasks by status
+  toggle <id>      Toggle task status
+  preview <id>     Preview task details
+  help             Show this help
+
+Examples:
+  :MdTask                    List all tasks
+  :MdTask list               List all tasks
+  :MdTask list TODO          List TODO tasks
+  :MdTask new                Create new task
+  :MdTask search bug fix     Search for "bug fix"
+  :MdTask edit task/123      Edit specific task
+  :MdTask toggle task/123    Toggle task status]]
+        
+        vim.notify(help_text, vim.log.levels.INFO)
+      end,
+    }
+    
+    local handler = subcommands[subcommand]
+    if handler then
+      handler()
+    else
+      vim.notify('Unknown subcommand: ' .. subcommand .. '\nUse :MdTask help for available commands', vim.log.levels.ERROR)
+    end
+  end, {
+    nargs = '*',
+    desc = 'MdTask commands',
+    complete = function(ArgLead, CmdLine, CursorPos)
+      local parts = vim.split(CmdLine, '%s+')
+      
+      -- Complete subcommands
+      if #parts == 2 then
+        local subcommands = {'list', 'new', 'search', 'edit', 'archive', 'web', 'status', 'toggle', 'preview', 'help'}
+        return vim.tbl_filter(function(cmd)
+          return cmd:find('^' .. ArgLead)
+        end, subcommands)
+      end
+      
+      -- Complete status values for appropriate subcommands
+      if #parts == 3 and (parts[2] == 'list' or parts[2] == 'status') then
+        local statuses = {'TODO', 'WIP', 'WAIT', 'SCHE', 'DONE'}
+        return vim.tbl_filter(function(status)
+          return status:find('^' .. ArgLead:upper())
+        end, statuses)
+      end
+      
+      return {}
+    end,
+  })
   
   -- Telescope integration if available
   if pcall(require, 'telescope') then
