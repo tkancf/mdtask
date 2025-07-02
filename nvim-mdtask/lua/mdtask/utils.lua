@@ -128,15 +128,7 @@ end
 
 -- Format task for display
 function M.format_task(task)
-  local status_icon = {
-    TODO = '○',
-    WIP = '◐',
-    WAIT = '◔',
-    SCHE = '◷',
-    DONE = '●',
-  }
-  
-  local icon = status_icon[task.status] or '?'
+  local status = task.status or 'TODO'
   local title = task.title or 'Untitled'
   local id = task.id or ''
   
@@ -145,13 +137,14 @@ function M.format_task(task)
   if task.deadline then
     local deadline_date = vim.fn.strptime('%Y-%m-%dT%H:%M:%SZ', task.deadline)
     if deadline_date and deadline_date < os.time() then
-      deadline_indicator = ' ⚠️'  -- Overdue
+      deadline_indicator = ' [OVERDUE]'
     else
-      deadline_indicator = ' 📅'  -- Has deadline
+      deadline_indicator = ' [DUE]'
     end
   end
   
-  return string.format('%s %s%s (%s)', icon, title, deadline_indicator, id)
+  -- Format: [STATUS] Title [deadline] (id)
+  return string.format('[%-4s] %s%s (%s)', status, title, deadline_indicator, id)
 end
 
 -- Get task by ID
