@@ -41,7 +41,7 @@ function M.show_task_list(tasks, title)
   
   -- Add help text at the bottom
   table.insert(lines, string.rep('─', math.min(width - 2, 80)))
-  table.insert(lines, 'Keys: <CR> edit  p preview  s toggle  d done  t todo  w wip  a archive  n new  r refresh  q quit')
+  table.insert(lines, 'Keys: <CR> edit  p preview  s toggle  d done  t todo  w wip  a archive  n new  r refresh')
   
   -- Set buffer content
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
@@ -54,9 +54,7 @@ function M.show_task_list(tasks, title)
   local opts = { buffer = buf, silent = true }
   local actions = require('mdtask.actions')
   
-  vim.keymap.set('n', 'q', function()
-    vim.api.nvim_win_close(win, true)
-  end, opts)
+  -- Removed 'q' mapping - use :q to quit like normal windows
   
   vim.keymap.set('n', '<CR>', function()
     local line = vim.api.nvim_get_current_line()
@@ -240,11 +238,7 @@ function M.show_content_editor(form_data, callback)
     vim.api.nvim_win_close(win, true)
   end, opts)
   vim.keymap.set('i', '<C-c>', '<Esc>:q<CR>', opts)
-  vim.keymap.set('n', 'q', function()
-    if not vim.api.nvim_buf_get_option(buf, 'modified') then
-      vim.api.nvim_win_close(win, true)
-    end
-  end, opts)
+  -- Removed 'q' mapping - use :q to quit like normal windows
 end
 
 
@@ -299,9 +293,7 @@ function M.show_task_preview(task)
   
   -- Set up keymaps
   local opts = { buffer = buf, silent = true }
-  vim.keymap.set('n', 'q', function()
-    vim.api.nvim_win_close(win, true)
-  end, opts)
+  -- Removed 'q' mapping - use :q to quit like normal windows
   vim.keymap.set('n', '<Esc>', function()
     vim.api.nvim_win_close(win, true)
   end, opts)
