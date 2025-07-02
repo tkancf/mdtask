@@ -10,9 +10,16 @@ M.task_list_win = nil
 function M.show_task_list(tasks, title)
   title = title or 'mdtask Tasks'
   
+  -- Calculate window size - almost full screen with some padding
+  local win_width = vim.api.nvim_get_option('columns')
+  local win_height = vim.api.nvim_get_option('lines')
+  
+  local width = math.floor(win_width * 0.9)  -- 90% of screen width
+  local height = math.floor(win_height * 0.85)  -- 85% of screen height
+  
   local buf, win = utils.create_float_win({
-    width = 100,
-    height = math.min(30, #tasks + 5),
+    width = width,
+    height = height,
   })
   
   M.task_list_buf = buf
@@ -24,6 +31,17 @@ function M.show_task_list(tasks, title)
   for _, task in ipairs(tasks) do
     table.insert(lines, utils.format_task(task))
   end
+  
+  -- Add empty lines to fill the window if needed
+  local content_lines = #lines
+  local available_height = height - 4  -- Reserve space for help text
+  while #lines < available_height do
+    table.insert(lines, '')
+  end
+  
+  -- Add help text at the bottom
+  table.insert(lines, string.rep('─', math.min(width - 2, 80)))
+  table.insert(lines, 'Keys: <CR> edit  p preview  s toggle  d done  t todo  w wip  a archive  n new  r refresh  q quit')
   
   -- Set buffer content
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
@@ -97,21 +115,6 @@ function M.show_task_list(tasks, title)
   
   -- Position cursor after header
   vim.api.nvim_win_set_cursor(win, {4, 0})
-  
-  -- Show help
-  vim.api.nvim_echo({
-    {'Keys: ', 'Normal'},
-    {'<CR>', 'Special'}, {' edit, ', 'Normal'},
-    {'p', 'Special'}, {' preview, ', 'Normal'},
-    {'s', 'Special'}, {' toggle status, ', 'Normal'},
-    {'d', 'Special'}, {' done, ', 'Normal'},
-    {'t', 'Special'}, {' todo, ', 'Normal'},
-    {'w', 'Special'}, {' wip, ', 'Normal'},
-    {'a', 'Special'}, {' archive, ', 'Normal'},
-    {'n', 'Special'}, {' new, ', 'Normal'},
-    {'r', 'Special'}, {' refresh, ', 'Normal'},
-    {'q', 'Special'}, {' quit', 'Normal'},
-  }, false, {})
 end
 
 -- Show task creation/editing form
