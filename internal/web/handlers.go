@@ -163,6 +163,46 @@ func matchesTags(t *task.Task, includeTags, excludeTags []string, orMode bool) b
 	}
 }
 
+func (s *Server) handleKanban(w http.ResponseWriter, r *http.Request) {
+	tasks, err := s.repo.FindActive()
+	if err != nil {
+		handleError(w, errors.InternalError("Failed to load tasks", err))
+		return
+	}
+
+	// Count tasks by status
+	todoCount := 0
+	wipCount := 0
+	waitCount := 0
+	doneCount := 0
+	
+	for _, t := range tasks {
+		switch t.GetStatus() {
+		case "TODO":
+			todoCount++
+		case "WIP":
+			wipCount++
+		case "WAIT":
+			waitCount++
+		case "DONE":
+			doneCount++
+		}
+	}
+
+	data := PageData{
+		Title:     "Kanban Board",
+		Tasks:     tasks,
+		TodoCount: todoCount,
+		WipCount:  wipCount,
+		WaitCount: waitCount,
+		DoneCount: doneCount,
+	}
+
+	if err := s.templates.ExecuteTemplate(w, "kanban.html", data); err != nil {
+		handleError(w, errors.InternalError("Failed to render template", err))
+	}
+}
+
 func (s *Server) handleByStatus(w http.ResponseWriter, r *http.Request) {
 	statusStr := strings.TrimPrefix(r.URL.Path, "/status/")
 	
@@ -409,30 +449,74 @@ func (s *Server) handleAPITasks(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAPITask(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "GET" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	id := strings.TrimPrefix(r.URL.Path, "/api/task/")
 	
-	t, err := s.repo.FindByID(id)
-	if err != nil {
-		handleError(w, err)
-		return
-	}
+	switch r.Method {
+	case "GET":
+		t, err := s.repo.FindByID(id)
+		if err != nil {
+			handleError(w, err)
+			return
+		}
 
-	response := APITaskResponse{
-		ID:          t.ID,
-		Title:       t.Title,
-		Description: t.Description,
-		Status:      string(t.GetStatus()),
-		Tags:        t.Tags,
-		Created:     t.Created,
-		Updated:     t.Updated,
-		Content:     t.Content,
-	}
+		response := APITaskResponse{
+			ID:          t.ID,
+			Title:       t.Title,
+			Description: t.Description,
+			Status:      string(t.GetStatus()),
+			Tags:        t.Tags,
+			Created:     t.Created,
+			Updated:     t.Updated,
+			Content:     t.Content,
+		}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+		
+	case "PUT":
+		t, err := s.repo.FindByID(id)
+		if err != nil {
+			handleError(w, err)
+			return
+		}
+
+		var updateRequest struct {
+			Status string `json:"status"`
+		}
+		
+		if err := json.NewDecoder(r.Body).Decode(&updateRequest); err != nil {
+			http.Error(w, "Invalid JSON", http.StatusBadRequest)
+			return
+		}
+
+		// Update task status
+		if updateRequest.Status != "" {
+			switch updateRequest.Status {
+			case "TODO":
+				t.SetStatus(task.StatusTODO)
+			case "WIP":
+				t.SetStatus(task.StatusWIP)
+			case "WAIT":
+				t.SetStatus(task.StatusWAIT)
+			case "DONE":
+				t.SetStatus(task.StatusDONE)
+			default:
+				http.Error(w, "Invalid status", http.StatusBadRequest)
+				return
+			}
+		}
+
+		t.Updated = time.Now()
+		
+		if err := s.repo.Update(t); err != nil {
+			handleError(w, errors.InternalError("Failed to update task", err))
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{"status": "success"})
+		
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
 }

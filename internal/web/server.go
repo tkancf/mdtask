@@ -64,6 +64,7 @@ func (s *Server) Start() error {
 	// Routes
 	mux.HandleFunc("/", s.handleIndex)
 	mux.HandleFunc("/tasks", s.handleTasks)
+	mux.HandleFunc("/kanban", s.handleKanban)
 	mux.HandleFunc("/status/", s.handleByStatus)
 	mux.HandleFunc("/search", s.handleSearch)
 	mux.HandleFunc("/task/", s.handleTask)
