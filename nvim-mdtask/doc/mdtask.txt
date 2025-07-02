@@ -1,0 +1,206 @@
+*mdtask.txt*           Neovim plugin for mdtask integration
+
+Author: tkancf
+License: MIT
+
+==============================================================================
+CONTENTS                                                      *mdtask-contents*
+
+1. Introduction ................................. |mdtask-introduction|
+2. Installation ................................. |mdtask-installation|
+3. Configuration ................................ |mdtask-configuration|
+4. Usage ........................................ |mdtask-usage|
+5. Commands ..................................... |mdtask-commands|
+6. Functions .................................... |mdtask-functions|
+7. Keybindings .................................. |mdtask-keybindings|
+8. Telescope Integration ........................ |mdtask-telescope|
+
+==============================================================================
+1. INTRODUCTION                                           *mdtask-introduction*
+
+mdtask.nvim is a Neovim plugin that provides seamless integration with mdtask,
+a task management tool that uses Markdown files as task tickets.
+
+The plugin allows you to:
+- List and browse tasks in floating windows
+- Create new tasks with a simple form interface
+- Search tasks by content
+- Edit tasks directly from Neovim
+- Archive completed tasks
+- Launch mdtask web interface
+- Integrate with telescope.nvim for enhanced browsing
+
+==============================================================================
+2. INSTALLATION                                           *mdtask-installation*
+
+Requirements:
+- Neovim 0.7+
+- mdtask binary installed and in PATH
+- Optional: telescope.nvim for enhanced UI
+
+Using lazy.nvim: >
+    {
+      'tkancf/mdtask.nvim',
+      dependencies = {
+        'nvim-telescope/telescope.nvim', -- optional
+      },
+      config = function()
+        require('mdtask').setup()
+      end,
+    }
+<
+
+Using packer.nvim: >
+    use {
+      'tkancf/mdtask.nvim',
+      requires = {
+        'nvim-telescope/telescope.nvim', -- optional
+      },
+      config = function()
+        require('mdtask').setup()
+      end
+    }
+<
+
+==============================================================================
+3. CONFIGURATION                                         *mdtask-configuration*
+
+Setup the plugin with your preferred options: >
+    require('mdtask').setup({
+      -- Path to mdtask binary
+      mdtask_path = 'mdtask',
+      
+      -- Default paths to search for tasks
+      task_paths = { '.', '~/tasks' },
+      
+      -- Web server port
+      web_port = 7000,
+      
+      -- Open browser when starting web server
+      open_browser = true,
+      
+      -- Telescope configuration
+      telescope = {
+        enabled = true,
+        theme = 'dropdown',
+        show_preview = true,
+      },
+      
+      -- UI configuration
+      ui = {
+        width = 80,
+        height = 20,
+        border = 'rounded',
+      },
+      
+      -- Task creation defaults
+      task_defaults = {
+        status = 'TODO',
+        tags = {},
+      },
+    })
+<
+
+==============================================================================
+4. USAGE                                                         *mdtask-usage*
+
+Basic workflow:
+
+1. List tasks with |:MdTaskList|
+2. Create new task with |:MdTaskNew|
+3. Search tasks with |:MdTaskSearch|
+4. Edit tasks by pressing <CR> in task list
+5. Archive completed tasks with 'a' key
+
+==============================================================================
+5. COMMANDS                                                   *mdtask-commands*
+
+                                                              *:MdTaskList*
+:MdTaskList             List all active tasks in a floating window
+
+                                                              *:MdTaskNew*
+:MdTaskNew              Create a new task using the task form
+
+                                                              *:MdTaskSearch*
+:MdTaskSearch [query]   Search tasks by content. If no query is provided,
+                        prompts for input.
+
+                                                              *:MdTaskStatus*
+:MdTaskStatus [status]  List tasks by status (TODO, WIP, WAIT, DONE).
+                        Defaults to 'todo' if no status provided.
+
+                                                              *:MdTaskEdit*
+:MdTaskEdit [task_id]   Edit a specific task. If no task_id is provided,
+                        attempts to extract from current line or prompts.
+
+                                                              *:MdTaskArchive*
+:MdTaskArchive [task_id] Archive a specific task. If no task_id is provided,
+                         attempts to extract from current line or prompts.
+
+                                                              *:MdTaskWeb*
+:MdTaskWeb              Start the mdtask web interface
+
+==============================================================================
+6. FUNCTIONS                                                 *mdtask-functions*
+
+                                                              *mdtask.setup()*
+mdtask.setup({opts})    Setup the plugin with configuration options
+
+                                                              *mdtask.list()*
+mdtask.list()           List all active tasks
+
+                                                              *mdtask.new()*
+mdtask.new()            Create a new task
+
+                                                              *mdtask.search()*
+mdtask.search({query})  Search tasks by query
+
+                                                              *mdtask.edit()*
+mdtask.edit({task_id})  Edit a specific task
+
+                                                              *mdtask.archive()*
+mdtask.archive({task_id}) Archive a specific task
+
+                                                              *mdtask.open_web()*
+mdtask.open_web()       Open the web interface
+
+==============================================================================
+7. KEYBINDINGS                                             *mdtask-keybindings*
+
+In task list windows:
+
+<CR>                    Edit selected task
+a                       Archive selected task
+n                       Create new task
+r                       Refresh task list
+q                       Close window
+
+In task form:
+
+<C-s>                   Save task
+<C-c>                   Cancel
+
+==============================================================================
+8. TELESCOPE INTEGRATION                                     *mdtask-telescope*
+
+If telescope.nvim is installed, additional commands are available:
+
+                                                    *:TelescopeMdTaskTasks*
+:TelescopeMdTaskTasks   Browse tasks using telescope picker
+
+                                                    *:TelescopeMdTaskSearch*
+:TelescopeMdTaskSearch  Search tasks using telescope picker
+
+Or use the Lua API: >
+    require('telescope').extensions.mdtask.tasks()
+    require('telescope').extensions.mdtask.search()
+<
+
+In telescope picker:
+
+<CR>                    Edit selected task
+<C-a>                   Archive selected task (insert mode)
+a                       Archive selected task (normal mode)
+
+==============================================================================
+vim:tw=78:ts=8:ft=help:norl:
