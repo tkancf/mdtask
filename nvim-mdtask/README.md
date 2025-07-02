@@ -93,24 +93,30 @@ require('mdtask').setup({
 
 ### Commands
 
+The plugin provides a unified `:MdTask` command with subcommands:
+
 | Command | Description |
 |---------|-------------|
-| `:MdTaskList` | List all active tasks |
-| `:MdTaskNew` | Create a new task |
-| `:MdTaskSearch [query]` | Search tasks |
-| `:MdTaskStatus [status]` | List tasks by status (TODO, WIP, WAIT, DONE) |
-| `:MdTaskEdit [task_id]` | Edit a task |
-| `:MdTaskArchive [task_id]` | Archive a task |
-| `:MdTaskWeb` | Start web interface |
+| `:MdTask` | List all active tasks (default) |
+| `:MdTask list [status]` | List tasks, optionally filtered by status |
+| `:MdTask new` | Create a new task |
+| `:MdTask search <query>` | Search tasks |
+| `:MdTask edit <id>` | Edit a task |
+| `:MdTask archive <id>` | Archive a task |
+| `:MdTask web` | Start web interface |
+| `:MdTask status <status>` | List tasks by status (TODO, WIP, WAIT, DONE) |
+| `:MdTask toggle <id>` | Toggle task status |
+| `:MdTask preview <id>` | Preview task details |
+| `:MdTask help` | Show help message |
 
 ### Telescope Integration
 
-If you have telescope.nvim installed:
+If you have telescope.nvim installed, use Telescope with:
 
-| Command | Description |
-|---------|-------------|
-| `:TelescopeMdTaskTasks` | Browse tasks with telescope |
-| `:TelescopeMdTaskSearch` | Search tasks with telescope |
+```vim
+:Telescope mdtask tasks
+:Telescope mdtask search
+```
 
 Or use Lua:
 
@@ -194,28 +200,35 @@ mdtask.open_web()
 ### Quick Task Creation
 
 ```vim
-:MdTaskNew
+:MdTask new
 " Fill in the form and press <C-s>
 ```
 
 ### Browse and Edit Tasks
 
 ```vim
-:MdTaskList
+:MdTask
 " Navigate with j/k, press <CR> to edit
 ```
 
 ### Search and Filter
 
 ```vim
-:MdTaskSearch important
-:MdTaskStatus WIP
+:MdTask search important
+:MdTask status WIP
+```
+
+### Toggle Task Status
+
+```vim
+:MdTask toggle task/20241228143000
+" Or just press a key on the selected task in the list
 ```
 
 ### Telescope Integration
 
 ```vim
-:TelescopeMdTaskTasks
+:Telescope mdtask tasks
 " Use telescope's fuzzy finding to locate tasks
 ```
 

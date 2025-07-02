@@ -106,39 +106,39 @@ Setup the plugin with your preferred options: >
 
 Basic workflow:
 
-1. List tasks with |:MdTaskList|
-2. Create new task with |:MdTaskNew|
-3. Search tasks with |:MdTaskSearch|
+1. List tasks with |:MdTask|
+2. Create new task with |:MdTask| new
+3. Search tasks with |:MdTask| search
 4. Edit tasks by pressing <CR> in task list
 5. Archive completed tasks with 'a' key
 
 ==============================================================================
 5. COMMANDS                                                   *mdtask-commands*
 
-                                                              *:MdTaskList*
-:MdTaskList             List all active tasks in a floating window
+The plugin provides a unified command with subcommands:
 
-                                                              *:MdTaskNew*
-:MdTaskNew              Create a new task using the task form
+                                                                    *:MdTask*
+:MdTask                 List all active tasks (default action)
 
-                                                              *:MdTaskSearch*
-:MdTaskSearch [query]   Search tasks by content. If no query is provided,
-                        prompts for input.
+:MdTask list [status]   List tasks, optionally filtered by status
 
-                                                              *:MdTaskStatus*
-:MdTaskStatus [status]  List tasks by status (TODO, WIP, WAIT, DONE).
-                        Defaults to 'todo' if no status provided.
+:MdTask new             Create a new task using the task form
 
-                                                              *:MdTaskEdit*
-:MdTaskEdit [task_id]   Edit a specific task. If no task_id is provided,
-                        attempts to extract from current line or prompts.
+:MdTask search {query}  Search tasks by content
 
-                                                              *:MdTaskArchive*
-:MdTaskArchive [task_id] Archive a specific task. If no task_id is provided,
-                         attempts to extract from current line or prompts.
+:MdTask edit {id}       Edit a specific task
 
-                                                              *:MdTaskWeb*
-:MdTaskWeb              Start the mdtask web interface
+:MdTask archive {id}    Archive a specific task
+
+:MdTask web             Start the mdtask web interface
+
+:MdTask status {status} List tasks by status (TODO, WIP, WAIT, DONE)
+
+:MdTask toggle {id}     Toggle task status through the workflow
+
+:MdTask preview {id}    Preview task details in a floating window
+
+:MdTask help            Show help message with all available commands
 
 ==============================================================================
 6. FUNCTIONS                                                 *mdtask-functions*
@@ -183,13 +183,11 @@ In task form:
 ==============================================================================
 8. TELESCOPE INTEGRATION                                     *mdtask-telescope*
 
-If telescope.nvim is installed, additional commands are available:
+If telescope.nvim is installed, you can use telescope integration:
 
-                                                    *:TelescopeMdTaskTasks*
-:TelescopeMdTaskTasks   Browse tasks using telescope picker
+:Telescope mdtask tasks    Browse tasks using telescope picker
 
-                                                    *:TelescopeMdTaskSearch*
-:TelescopeMdTaskSearch  Search tasks using telescope picker
+:Telescope mdtask search   Search tasks using telescope picker
 
 Or use the Lua API: >
     require('telescope').extensions.mdtask.tasks()
