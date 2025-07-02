@@ -60,7 +60,7 @@ function M.show_task_list(tasks, title)
   -- Add help text at the bottom
   local win_width = vim.api.nvim_win_get_width(win)
   table.insert(lines, string.rep('─', math.min(win_width - 2, 80)))
-  table.insert(lines, 'Keys: <CR> edit  p preview  s toggle  d done  t todo  w wip  a archive  n new  r refresh  q quit')
+  table.insert(lines, 'Keys: <CR> open  sp preview  ss toggle  st todo  sw wip  sd done  sa archive  sn new  se edit  r refresh  q quit')
   
   -- Set buffer content
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
@@ -81,16 +81,23 @@ function M.show_task_list(tasks, title)
       vim.api.nvim_win_close(win, true)
     end, opts)
     
+    -- <CR> to open the task file
     vim.keymap.set('n', '<CR>', function()
       local line = vim.api.nvim_get_current_line()
       local task_id = line:match('%(([^)]+)%)')
       if task_id then
-        -- Don't close the window, just hide it temporarily
-        require('mdtask.tasks').edit(task_id)
+        -- Open the task file in current window
+        vim.api.nvim_win_close(win, true)
+        -- Get task file path and open it
+        local timestamp = task_id:match('task/(.+)')
+        if timestamp then
+          vim.cmd('edit ' .. timestamp .. '.md')
+        end
       end
     end, opts)
   
-    vim.keymap.set('n', 'a', function()
+    -- sa to archive
+    vim.keymap.set('n', 'sa', function()
       actions.quick_archive()
     end, opts)
     
@@ -98,21 +105,33 @@ function M.show_task_list(tasks, title)
       require('mdtask.tasks').list()
     end, opts)
     
-    vim.keymap.set('n', 'n', function()
+    -- sn to create new task
+    vim.keymap.set('n', 'sn', function()
       -- Don't close the window, just hide it temporarily
       require('mdtask.tasks').new()
     end, opts)
     
-    -- New keybindings
-    vim.keymap.set('n', 's', function()
+    -- se to edit task
+    vim.keymap.set('n', 'se', function()
+      local line = vim.api.nvim_get_current_line()
+      local task_id = line:match('%(([^)]+)%)')
+      if task_id then
+        require('mdtask.tasks').edit(task_id)
+      end
+    end, opts)
+    
+    -- ss to toggle status
+    vim.keymap.set('n', 'ss', function()
       actions.toggle_task_status()
     end, opts)
     
-    vim.keymap.set('n', 'p', function()
+    -- sp to preview
+    vim.keymap.set('n', 'sp', function()
       actions.preview_task()
     end, opts)
     
-    vim.keymap.set('n', 'd', function()
+    -- sd to mark as DONE
+    vim.keymap.set('n', 'sd', function()
       local line = vim.api.nvim_get_current_line()
       local task_id = line:match('%(([^)]+)%)')
       if task_id then
@@ -120,7 +139,8 @@ function M.show_task_list(tasks, title)
       end
     end, opts)
     
-    vim.keymap.set('n', 't', function()
+    -- st to mark as TODO
+    vim.keymap.set('n', 'st', function()
       local line = vim.api.nvim_get_current_line()
       local task_id = line:match('%(([^)]+)%)')
       if task_id then
@@ -128,7 +148,8 @@ function M.show_task_list(tasks, title)
       end
     end, opts)
     
-    vim.keymap.set('n', 'w', function()
+    -- sw to mark as WIP
+    vim.keymap.set('n', 'sw', function()
       local line = vim.api.nvim_get_current_line()
       local task_id = line:match('%(([^)]+)%)')
       if task_id then
