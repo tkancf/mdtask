@@ -24,14 +24,15 @@ function M.show_task_list(tasks, title)
     if task_id then
       M.saved_task_id = task_id
     else
-      -- If on description line, check previous line
+      -- If on link or description line, check previous lines
       local row = M.saved_cursor_pos[1]
-      if row > 1 then
-        local prev_line = vim.api.nvim_buf_get_lines(M.task_list_buf, row - 2, row - 1, false)[1]
-        if prev_line then
-          task_id = prev_line:match('<!-- (task/[^>]+) -->')
+      for i = row - 1, math.max(1, row - 4), -1 do
+        local check_line = vim.api.nvim_buf_get_lines(M.task_list_buf, i - 1, i, false)[1]
+        if check_line then
+          task_id = check_line:match('<!-- (task/[^>]+) -->')
           if task_id then
             M.saved_task_id = task_id
+            break
           end
         end
       end
@@ -106,10 +107,11 @@ function M.show_task_list(tasks, title)
       -- Try to find task ID in HTML comment
       local task_id = line:match('<!-- (task/[^>]+) -->')
       
-      -- If not found, check if we're on a description line
+      -- If not found, check previous lines (for when on link or description line)
       if not task_id then
         local row = vim.api.nvim_win_get_cursor(0)[1]
-        for i = row - 1, math.max(1, row - 3), -1 do
+        -- Check up to 4 lines above (to handle title + link + description)
+        for i = row - 1, math.max(1, row - 4), -1 do
           local check_line = vim.api.nvim_buf_get_lines(buf, i - 1, i, false)[1]
           if check_line then
             task_id = check_line:match('<!-- (task/[^>]+) -->')

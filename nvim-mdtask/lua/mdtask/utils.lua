@@ -155,21 +155,23 @@ function M.format_task(task)
   
   -- Format main line and description line(s)
   local lines = {}
-  -- Main line: - STATUS: Title [deadline] [Title](path)
+  -- Main line: - STATUS: Title [deadline]
   local main_line = string.format('- %s: %s%s', status, title, deadline_indicator)
-  if file_path ~= '' then
-    main_line = main_line .. string.format(' [%s](%s)', title, file_path)
-  end
-  table.insert(lines, main_line)
-  
-  -- Add description as indented line if present
-  if description and description ~= '' then
-    table.insert(lines, string.format('    - %s', description))
-  end
   
   -- Store task ID in a hidden format for keybinding functionality
   if id and id ~= '' then
-    lines[1] = lines[1] .. string.format(' <!-- %s -->', id)
+    main_line = main_line .. string.format(' <!-- %s -->', id)
+  end
+  table.insert(lines, main_line)
+  
+  -- Add markdown link as second line if file path exists
+  if file_path ~= '' then
+    table.insert(lines, string.format('    - [%s](%s)', title, file_path))
+  end
+  
+  -- Add description as third line if present
+  if description and description ~= '' then
+    table.insert(lines, string.format('    - %s', description))
   end
   
   return lines
