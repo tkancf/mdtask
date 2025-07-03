@@ -86,7 +86,7 @@ function M.show_task_list(tasks, title)
   -- Add help text at the bottom
   local win_width = vim.api.nvim_win_get_width(win)
   table.insert(lines, string.rep('─', math.min(win_width - 2, 80)))
-  table.insert(lines, 'Keys: <CR> open  sp preview  ss toggle  st todo  sw wip  sd done  sa archive  sn new  se edit  r refresh  q quit  :w save')
+  table.insert(lines, 'Keys: <CR> open  sp preview  / search  ? help  s[twhzd] status  s[STD] edit field  sn new  se edit  sa archive  q quit')
   
   -- Set buffer content
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
@@ -233,6 +233,118 @@ function M.show_task_list(tasks, title)
       if task_id then
         actions.quick_status_update(task_id, 'WIP')
       end
+    end, opts)
+    
+    -- sh to mark as SCHE (scheduled)
+    vim.keymap.set('n', 'sh', function()
+      local task_id = get_task_id_from_position()
+      if task_id then
+        actions.quick_status_update(task_id, 'SCHE')
+      end
+    end, opts)
+    
+    -- sz to mark as WAIT
+    vim.keymap.set('n', 'sz', function()
+      local task_id = get_task_id_from_position()
+      if task_id then
+        actions.quick_status_update(task_id, 'WAIT')
+      end
+    end, opts)
+    
+    -- Field-specific edits
+    -- sS to edit status (with selection dialog)
+    vim.keymap.set('n', 'sS', function()
+      local task_id = get_task_id_from_position()
+      if task_id then
+        require('mdtask.tasks').edit_field(task_id, 'status')
+      end
+    end, opts)
+    
+    -- sT to edit title
+    vim.keymap.set('n', 'sT', function()
+      local task_id = get_task_id_from_position()
+      if task_id then
+        require('mdtask.tasks').edit_field(task_id, 'title')
+      end
+    end, opts)
+    
+    -- sD to edit description
+    vim.keymap.set('n', 'sD', function()
+      local task_id = get_task_id_from_position()
+      if task_id then
+        require('mdtask.tasks').edit_field(task_id, 'description')
+      end
+    end, opts)
+    
+    -- / to search tasks
+    vim.keymap.set('n', '/', function()
+      vim.ui.input({ prompt = 'Search tasks: ' }, function(query)
+        if query and query ~= '' then
+          vim.api.nvim_win_close(win, true)
+          require('mdtask.tasks').search(query)
+        end
+      end)
+    end, opts)
+    
+    -- W to open web interface
+    vim.keymap.set('n', 'W', function()
+      require('mdtask.tasks').open_web()
+    end, opts)
+    
+    -- ? to show help
+    vim.keymap.set('n', '?', function()
+      local help_text = [[
+Task List Shortcuts:
+
+Navigation & View:
+  <CR>    Open task file
+  sp      Preview task
+  q       Quit
+  r       Refresh list
+  /       Search tasks
+  W       Open web interface
+  ?       Show this help
+
+Task Management:
+  sn      New task
+  se      Edit task (full form)
+  sa      Archive task
+
+Quick Status Change:
+  ss      Toggle status
+  st      Set TODO
+  sw      Set WIP (Work in Progress)
+  sz      Set WAIT
+  sh      Set SCHE (Scheduled)
+  sd      Set DONE
+
+Field-Specific Edit:
+  sS      Edit status (with dialog)
+  sT      Edit title
+  sD      Edit description
+
+Direct Editing:
+  :w      Save changes (edit mode)
+]]
+      -- Create a floating window for help
+      local help_buf = vim.api.nvim_create_buf(false, true)
+      vim.api.nvim_buf_set_lines(help_buf, 0, -1, false, vim.split(help_text, '\n'))
+      vim.api.nvim_buf_set_option(help_buf, 'modifiable', false)
+      
+      local help_win = vim.api.nvim_open_win(help_buf, true, {
+        relative = 'editor',
+        width = 50,
+        height = 30,
+        row = 5,
+        col = 10,
+        border = 'rounded',
+        style = 'minimal',
+      })
+      
+      -- Close help with any key
+      vim.api.nvim_buf_set_keymap(help_buf, 'n', '<Esc>', ':close<CR>', { silent = true })
+      vim.api.nvim_buf_set_keymap(help_buf, 'n', 'q', ':close<CR>', { silent = true })
+      vim.api.nvim_buf_set_keymap(help_buf, 'n', '?', ':close<CR>', { silent = true })
     end, opts)
   end  -- end of if not reuse_window
   
