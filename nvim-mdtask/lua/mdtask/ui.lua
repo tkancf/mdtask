@@ -85,17 +85,34 @@ function M.show_task_list(tasks, title)
   -- Add help text at the bottom
   local win_width = vim.api.nvim_win_get_width(win)
   table.insert(lines, string.rep('─', math.min(win_width - 2, 80)))
-  table.insert(lines, 'Keys: <CR> open  sp preview  ss toggle  st todo  sw wip  sd done  sa archive  sn new  se edit  r refresh  q quit')
+  table.insert(lines, 'Keys: <CR> open  sp preview  ss toggle  st todo  sw wip  sd done  sa archive  sn new  se edit  r refresh  q quit  :w save')
   
   -- Set buffer content
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-  vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+  -- Make buffer modifiable for direct editing
+  vim.api.nvim_buf_set_option(buf, 'modifiable', true)
   
   -- Only set these options for new buffers
   if not reuse_window then
-    vim.api.nvim_buf_set_option(buf, 'buftype', 'nofile')
+    -- Remove 'nofile' buftype to allow :w command
+    vim.api.nvim_buf_set_option(buf, 'buftype', '')
     vim.api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
     vim.api.nvim_buf_set_option(buf, 'filetype', 'mdtask')
+    -- Set buffer name if not already set
+    if vim.api.nvim_buf_get_name(buf) == '' then
+      vim.api.nvim_buf_set_name(buf, 'mdtask://list')
+    end
+    
+    -- Set up BufWriteCmd autocmd for saving
+    vim.api.nvim_create_autocmd('BufWriteCmd', {
+      buffer = buf,
+      callback = function()
+        local buffer_sync = require('mdtask.buffer_sync')
+        buffer_sync.save_buffer_changes(buf)
+        -- Mark buffer as not modified
+        vim.api.nvim_buf_set_option(buf, 'modified', false)
+      end,
+    })
     
     -- Set up keymaps
     local opts = { buffer = buf, silent = true }
