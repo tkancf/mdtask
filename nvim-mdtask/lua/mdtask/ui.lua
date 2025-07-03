@@ -137,7 +137,21 @@ function M.show_task_list(tasks, title)
         -- Get task file path and open it
         local timestamp = task_id:match('task/(.+)')
         if timestamp then
-          vim.cmd('edit ' .. timestamp .. '.md')
+          -- Try different possible paths
+          local possible_paths = {
+            '_tkancf/' .. timestamp .. '.md',
+            timestamp .. '.md',
+          }
+          
+          for _, path in ipairs(possible_paths) do
+            if vim.fn.filereadable(path) == 1 then
+              vim.cmd('edit ' .. vim.fn.fnameescape(path))
+              return
+            end
+          end
+          
+          -- If no file found, try the most likely path
+          vim.cmd('edit ' .. vim.fn.fnameescape('_tkancf/' .. timestamp .. '.md'))
         end
       end
     end, opts)
