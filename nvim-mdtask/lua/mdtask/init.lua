@@ -34,7 +34,17 @@ function M.setup(opts)
         tasks.search(table.concat(args, ' '))
       end,
       edit = function()
-        tasks.edit(args[1])
+        -- Check if editing specific field
+        if args[1] == 'status' or args[1] == 'title' or args[1] == 'description' then
+          -- :MdTask edit status [task_id] [value]
+          local field = args[1]
+          local task_id = args[2]
+          local value = args[3]
+          tasks.edit_field(task_id, field, value)
+        else
+          -- :MdTask edit [task_id]
+          tasks.edit(args[1])
+        end
       end,
       archive = function()
         tasks.archive(args[1])
@@ -58,7 +68,8 @@ Subcommands:
   list [status]    List tasks (optionally filtered by status)
   new              Create a new task
   search <query>   Search tasks
-  edit <id>        Edit a task
+  edit <id>        Edit a task (full form)
+  edit <field> [id] [value]  Edit specific field (status/title/description)
   archive <id>     Archive a task
   web              Open web interface
   toggle <id>      Toggle task status
@@ -71,7 +82,10 @@ Examples:
   :MdTask list TODO          List TODO tasks
   :MdTask new                Create new task
   :MdTask search bug fix     Search for "bug fix"
-  :MdTask edit task/123      Edit specific task
+  :MdTask edit task/123      Edit task (full form)
+  :MdTask edit status        Edit status of current task
+  :MdTask edit status task/123  Edit status of specific task
+  :MdTask edit title         Edit title of current task
   :MdTask toggle task/123    Toggle task status]]
         
         vim.notify(help_text, vim.log.levels.INFO)
@@ -98,8 +112,25 @@ Examples:
         end, subcommands)
       end
       
-      -- Complete status values for list subcommand
+      -- Complete for edit subcommand
+      if #parts == 3 and parts[2] == 'edit' then
+        -- First argument after edit can be task ID or field name
+        local fields = {'status', 'title', 'description'}
+        return vim.tbl_filter(function(field)
+          return field:find('^' .. ArgLead:lower())
+        end, fields)
+      end
+      
+      -- Complete status values
       if #parts == 3 and parts[2] == 'list' then
+        local statuses = {'TODO', 'WIP', 'WAIT', 'SCHE', 'DONE'}
+        return vim.tbl_filter(function(status)
+          return status:find('^' .. ArgLead:upper())
+        end, statuses)
+      end
+      
+      -- Complete status values for edit status
+      if #parts == 5 and parts[2] == 'edit' and parts[3] == 'status' then
         local statuses = {'TODO', 'WIP', 'WAIT', 'SCHE', 'DONE'}
         return vim.tbl_filter(function(status)
           return status:find('^' .. ArgLead:upper())
