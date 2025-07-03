@@ -145,21 +145,21 @@ function M.format_task(task)
     end
   end
   
-  -- Add deadline indicator if present
-  local deadline_indicator = ''
+  -- Check deadline status
+  local deadline_status = nil
   if task.deadline then
     local deadline_date = vim.fn.strptime('%Y-%m-%dT%H:%M:%SZ', task.deadline)
     if deadline_date and deadline_date < os.time() then
-      deadline_indicator = ' [OVERDUE]'
+      deadline_status = 'overdue'
     else
-      deadline_indicator = ' [DUE]'
+      deadline_status = 'due'
     end
   end
   
   -- Format main line and description line(s)
   local lines = {}
-  -- Main line: - STATUS: Title [deadline]
-  local main_line = string.format('- %s: %s%s', status, title, deadline_indicator)
+  -- Main line: - STATUS: Title (without deadline indicator)
+  local main_line = string.format('- %s: %s', status, title)
   
   -- Store task ID in curly braces for keybinding functionality
   if id and id ~= '' then
@@ -177,7 +177,8 @@ function M.format_task(task)
     table.insert(lines, string.format('    - %s', description))
   end
   
-  return lines
+  -- Return lines and deadline status separately
+  return lines, deadline_status
 end
 
 -- Get task by ID

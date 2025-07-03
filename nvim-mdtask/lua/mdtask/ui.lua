@@ -184,8 +184,17 @@ function M.show_task_list(tasks, title)
   -- Prepare lines for display
   local lines = { title, string.rep('─', #title), '' }
   
+  -- Store deadline info for virtual text
+  local deadline_info = {}  -- { line_number = deadline_status }
+  
   for _, task in ipairs(tasks) do
-    local task_lines = utils.format_task(task)
+    local task_lines, deadline_status = utils.format_task(task)
+    
+    -- Store deadline status for the main task line
+    if deadline_status then
+      deadline_info[#lines + 1] = deadline_status  -- +1 for the line we're about to add
+    end
+    
     for _, line in ipairs(task_lines) do
       table.insert(lines, line)
     end
@@ -212,6 +221,9 @@ function M.show_task_list(tasks, title)
   
   -- Apply syntax highlights
   highlights.apply_highlights(buf)
+  
+  -- Apply deadline virtual text
+  highlights.apply_deadline_virtual_text(buf, deadline_info)
   
   -- Only set these options for new buffers
   if not reuse_window then

@@ -72,25 +72,8 @@ function M.apply_highlights(buf)
         local id_start = line:find('{task/')
         local title_end = id_start and id_start - 1 or -1
         
-        -- Check for deadline indicators
-        local deadline_start = line:find('%[OVERDUE%]')
-        local due_start = line:find('%[DUE%]')
-        
-        if deadline_start then
-          vim.api.nvim_buf_add_highlight(buf, -1, title_hl, line_num, title_start, deadline_start - 1)
-          vim.api.nvim_buf_add_highlight(buf, -1, 'MdTaskOverdue', line_num, deadline_start - 1, deadline_start + 8)
-          if id_start and id_start > deadline_start + 8 then
-            vim.api.nvim_buf_add_highlight(buf, -1, title_hl, line_num, deadline_start + 8, id_start - 1)
-          end
-        elseif due_start then
-          vim.api.nvim_buf_add_highlight(buf, -1, title_hl, line_num, title_start, due_start - 1)
-          vim.api.nvim_buf_add_highlight(buf, -1, 'MdTaskDeadline', line_num, due_start - 1, due_start + 4)
-          if id_start and id_start > due_start + 4 then
-            vim.api.nvim_buf_add_highlight(buf, -1, title_hl, line_num, due_start + 4, id_start - 1)
-          end
-        else
-          vim.api.nvim_buf_add_highlight(buf, -1, title_hl, line_num, title_start, title_end)
-        end
+        -- Highlight title
+        vim.api.nvim_buf_add_highlight(buf, -1, title_hl, line_num, title_start, title_end)
         
         -- Highlight task ID
         if id_start then
@@ -106,6 +89,26 @@ function M.apply_highlights(buf)
     elseif line:match('^%s+%- %[.+%]%(') then
       vim.api.nvim_buf_add_highlight(buf, -1, 'MdTaskLink', line_num, 0, -1)
     end
+  end
+end
+
+-- Apply virtual text for deadline indicators
+function M.apply_deadline_virtual_text(buf, deadline_info)
+  -- Create namespace for virtual text
+  local ns_id = vim.api.nvim_create_namespace('mdtask_deadline')
+  
+  -- Clear existing virtual text
+  vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
+  
+  -- Apply virtual text for each deadline
+  for line_num, status in pairs(deadline_info) do
+    local text = status == 'overdue' and '[OVERDUE]' or '[DUE]'
+    local hl_group = status == 'overdue' and 'MdTaskOverdue' or 'MdTaskDeadline'
+    
+    vim.api.nvim_buf_set_extmark(buf, ns_id, line_num - 1, -1, {
+      virt_text = {{' ' .. text, hl_group}},
+      virt_text_pos = 'eol',
+    })
   end
 end
 
