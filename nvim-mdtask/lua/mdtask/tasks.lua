@@ -84,16 +84,20 @@ function M.new()
     
     -- Add title (required)
     if task_data.title and task_data.title ~= '' then
+      -- Remove newlines from title
+      local cleaned_title = task_data.title:gsub('[\n\r]+', ' '):gsub('%s+', ' '):match('^%s*(.-)%s*$')
       table.insert(args, '--title')
-      table.insert(args, task_data.title)
+      table.insert(args, cleaned_title)
     else
       utils.notify('Title is required', vim.log.levels.ERROR)
       return
     end
     
     -- Add description (always provide this flag to avoid interactive prompts)
+    -- Remove newlines from description
+    local cleaned_description = (task_data.description or ''):gsub('[\n\r]+', ' '):gsub('%s+', ' '):match('^%s*(.-)%s*$')
     table.insert(args, '--description')
-    table.insert(args, task_data.description or '')
+    table.insert(args, cleaned_description)
     
     -- Add content (always provide this flag to avoid interactive prompts)
     table.insert(args, '--content')
@@ -163,13 +167,17 @@ function M.edit(task_id)
       
       -- Add updated fields
       if task_data.title then
+        -- Remove newlines from title
+        local cleaned_title = task_data.title:gsub('[\n\r]+', ' '):gsub('%s+', ' '):match('^%s*(.-)%s*$')
         table.insert(args, '--title')
-        table.insert(args, task_data.title)
+        table.insert(args, cleaned_title)
       end
       
-      if task_data.description then
+      if task_data.description ~= nil then
+        -- Remove newlines from description
+        local cleaned_description = task_data.description:gsub('[\n\r]+', ' '):gsub('%s+', ' '):match('^%s*(.-)%s*$')
         table.insert(args, '--description')
-        table.insert(args, task_data.description)
+        table.insert(args, cleaned_description)
       end
       
       if task_data.status then
