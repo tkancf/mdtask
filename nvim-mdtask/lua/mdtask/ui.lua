@@ -310,10 +310,16 @@ function M.show_content_editor(form_data, callback)
     '',
   }
   
-  -- Add existing content
+  -- Add existing content or default content for new tasks
   if form_data.content and form_data.content ~= '' then
     for line in form_data.content:gmatch("[^\n]*") do
       table.insert(content_lines, line)
+    end
+  else
+    -- For new tasks, add title as default content
+    if form_data.title and form_data.title ~= '' then
+      table.insert(content_lines, '# ' .. form_data.title)
+      table.insert(content_lines, '')
     end
   end
   
@@ -323,8 +329,9 @@ function M.show_content_editor(form_data, callback)
   vim.api.nvim_buf_set_option(buf, 'filetype', 'markdown')
   vim.api.nvim_buf_set_option(buf, 'modifiable', true)
   
-  -- Set cursor to first content line
-  vim.api.nvim_win_set_cursor(win, {5, 0})
+  -- Set cursor to end of content
+  local line_count = vim.api.nvim_buf_line_count(buf)
+  vim.api.nvim_win_set_cursor(win, {line_count, 0})
   
   -- Create save function
   local function save_and_close()
