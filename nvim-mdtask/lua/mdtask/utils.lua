@@ -161,9 +161,9 @@ function M.format_task(task)
   -- Main line: - STATUS: Title [deadline]
   local main_line = string.format('- %s: %s%s', status, title, deadline_indicator)
   
-  -- Store task ID in a hidden format for keybinding functionality
+  -- Store task ID in curly braces for keybinding functionality
   if id and id ~= '' then
-    main_line = main_line .. string.format(' <!-- %s -->', id)
+    main_line = main_line .. string.format(' {%s}', id)
   end
   table.insert(lines, main_line)
   

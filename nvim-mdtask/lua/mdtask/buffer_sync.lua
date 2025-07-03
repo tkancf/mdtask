@@ -4,8 +4,8 @@ local utils = require('mdtask.utils')
 
 -- Parse a task line and extract information
 function M.parse_task_line(line)
-  -- First, try to find task ID anywhere in the line
-  local task_id = line:match('task/%d+')
+  -- First, try to find task ID in curly braces
+  local task_id = line:match('{(task/%d+)}')
   if not task_id then
     return {}
   end
@@ -14,8 +14,8 @@ function M.parse_task_line(line)
   local status, title = line:match('^%s*%- (%w+): (.+)$')
   
   if status and title then
-    -- Clean title by removing HTML comment and trimming
-    title = title:gsub('%s*<!%-%-.+%-%->%s*$', ''):match('^%s*(.-)%s*$')
+    -- Clean title by removing task ID in curly braces and trimming
+    title = title:gsub('%s*{.+}%s*$', ''):match('^%s*(.-)%s*$')
   end
   
   return {

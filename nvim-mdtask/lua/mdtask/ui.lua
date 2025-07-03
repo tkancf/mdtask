@@ -20,7 +20,7 @@ function M.show_task_list(tasks, title)
     -- Save current cursor position and task ID before refresh
     M.saved_cursor_pos = vim.api.nvim_win_get_cursor(M.task_list_win)
     local current_line = vim.api.nvim_get_current_line()
-    local task_id = current_line:match('task/%d+')
+    local task_id = current_line:match('{(task/%d+)}')
     if task_id then
       M.saved_task_id = task_id
     else
@@ -29,7 +29,7 @@ function M.show_task_list(tasks, title)
       for i = row - 1, math.max(1, row - 4), -1 do
         local check_line = vim.api.nvim_buf_get_lines(M.task_list_buf, i - 1, i, false)[1]
         if check_line then
-          task_id = check_line:match('task/%d+')
+          task_id = check_line:match('{(task/%d+)}')
           if task_id then
             M.saved_task_id = task_id
             break
@@ -122,8 +122,8 @@ function M.show_task_list(tasks, title)
     local function get_task_id_from_position()
       local line = vim.api.nvim_get_current_line()
       
-      -- Simple pattern to find task ID
-      local task_id = line:match('task/%d+')
+      -- Pattern to find task ID in curly braces
+      local task_id = line:match('{(task/%d+)}')
       
       -- If not found, check previous lines (for when on link or description line)
       if not task_id then
@@ -132,7 +132,7 @@ function M.show_task_list(tasks, title)
         for i = row - 1, math.max(1, row - 4), -1 do
           local check_line = vim.api.nvim_buf_get_lines(buf, i - 1, i, false)[1]
           if check_line then
-            task_id = check_line:match('task/%d+')
+            task_id = check_line:match('{(task/%d+)}')
             if task_id then break end
           end
         end
