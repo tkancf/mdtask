@@ -85,7 +85,17 @@ function M.apply_highlights(buf)
     elseif line:match('^%s+%- ') and not line:match('^%s+%- %[.+%]%(') then
       -- Check if it's a deadline line
       if line:match('^%s+%- Deadline:') then
-        vim.api.nvim_buf_add_highlight(buf, -1, 'MdTaskDeadline', line_num, 0, -1)
+        -- Check if it contains OVERDUE text
+        if line:match('%[OVERDUE%]') then
+          -- Highlight the deadline part
+          local deadline_end = line:find('%[OVERDUE%]') - 1
+          vim.api.nvim_buf_add_highlight(buf, -1, 'MdTaskDeadline', line_num, 0, deadline_end)
+          -- Highlight the OVERDUE part
+          local overdue_start = line:find('%[OVERDUE%]') - 1
+          vim.api.nvim_buf_add_highlight(buf, -1, 'MdTaskOverdue', line_num, overdue_start, -1)
+        else
+          vim.api.nvim_buf_add_highlight(buf, -1, 'MdTaskDeadline', line_num, 0, -1)
+        end
       else
         vim.api.nvim_buf_add_highlight(buf, -1, 'MdTaskDescription', line_num, 0, -1)
       end
@@ -99,22 +109,10 @@ end
 
 -- Apply virtual text for deadline indicators
 function M.apply_deadline_virtual_text(buf, deadline_info)
-  -- Create namespace for virtual text
+  -- No longer needed since OVERDUE is shown as regular text
+  -- Keep function for compatibility but do nothing
   local ns_id = vim.api.nvim_create_namespace('mdtask_deadline')
-  
-  -- Clear existing virtual text
   vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
-  
-  -- Apply virtual text for each deadline
-  for line_num, status in pairs(deadline_info) do
-    local text = status == 'overdue' and '[OVERDUE]' or '[DUE]'
-    local hl_group = status == 'overdue' and 'MdTaskOverdue' or 'MdTaskDeadline'
-    
-    vim.api.nvim_buf_set_extmark(buf, ns_id, line_num - 1, -1, {
-      virt_text = {{' ' .. text, hl_group}},
-      virt_text_pos = 'eol',
-    })
-  end
 end
 
 -- Apply virtual text for task IDs
