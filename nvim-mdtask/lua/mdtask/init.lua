@@ -40,9 +40,6 @@ function M.setup(opts)
         tasks.archive(args[1])
       end,
       web = tasks.open_web,
-      status = function()
-        tasks.list_by_status(args[1] or 'todo')
-      end,
       toggle = function()
         local actions = require('mdtask.actions')
         actions.toggle_task_status(args[1])
@@ -64,7 +61,6 @@ Subcommands:
   edit <id>        Edit a task
   archive <id>     Archive a task
   web              Open web interface
-  status <status>  List tasks by status
   toggle <id>      Toggle task status
   preview <id>     Preview task details
   help             Show this help
@@ -96,14 +92,14 @@ Examples:
       
       -- Complete subcommands
       if #parts == 2 then
-        local subcommands = {'list', 'new', 'search', 'edit', 'archive', 'web', 'status', 'toggle', 'preview', 'help'}
+        local subcommands = {'list', 'new', 'search', 'edit', 'archive', 'web', 'toggle', 'preview', 'help'}
         return vim.tbl_filter(function(cmd)
           return cmd:find('^' .. ArgLead)
         end, subcommands)
       end
       
-      -- Complete status values for appropriate subcommands
-      if #parts == 3 and (parts[2] == 'list' or parts[2] == 'status') then
+      -- Complete status values for list subcommand
+      if #parts == 3 and parts[2] == 'list' then
         local statuses = {'TODO', 'WIP', 'WAIT', 'SCHE', 'DONE'}
         return vim.tbl_filter(function(status)
           return status:find('^' .. ArgLead:upper())
