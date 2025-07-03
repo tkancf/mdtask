@@ -144,7 +144,7 @@ function M.edit(task_id)
   if not task_id or task_id == '' then
     -- Get task ID from user or current line
     local current_line = vim.api.nvim_get_current_line()
-    task_id = current_line:match('%(([^)]+)%)')
+    task_id = current_line:match('<!-- (task/[^>]+) -->')
     
     if not task_id then
       vim.ui.input({ prompt = 'Task ID: ' }, function(input)
@@ -212,7 +212,7 @@ function M.archive(task_id)
   if not task_id or task_id == '' then
     -- Get task ID from current line
     local current_line = vim.api.nvim_get_current_line()
-    task_id = current_line:match('%(([^)]+)%)')
+    task_id = current_line:match('<!-- (task/[^>]+) -->')
     
     if not task_id then
       vim.ui.input({ prompt = 'Task ID to archive: ' }, function(input)

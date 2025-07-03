@@ -133,6 +133,15 @@ function M.format_task(task)
   local id = task.id or ''
   local description = task.description
   
+  -- Generate file path from task ID
+  local file_path = ''
+  if id and id ~= '' then
+    local timestamp = id:match('task/(.+)')
+    if timestamp then
+      file_path = timestamp .. '.md'
+    end
+  end
+  
   -- Add deadline indicator if present
   local deadline_indicator = ''
   if task.deadline then
@@ -146,12 +155,21 @@ function M.format_task(task)
   
   -- Format main line and description line(s)
   local lines = {}
-  -- Main line: - STATUS: Title [deadline] (id)
-  table.insert(lines, string.format('- %s: %s%s (%s)', status, title, deadline_indicator, id))
+  -- Main line: - STATUS: Title [deadline] [Title](path)
+  local main_line = string.format('- %s: %s%s', status, title, deadline_indicator)
+  if file_path ~= '' then
+    main_line = main_line .. string.format(' [%s](%s)', title, file_path)
+  end
+  table.insert(lines, main_line)
   
   -- Add description as indented line if present
   if description and description ~= '' then
     table.insert(lines, string.format('    - %s', description))
+  end
+  
+  -- Store task ID in a hidden format for keybinding functionality
+  if id and id ~= '' then
+    lines[1] = lines[1] .. string.format(' <!-- %s -->', id)
   end
   
   return lines
