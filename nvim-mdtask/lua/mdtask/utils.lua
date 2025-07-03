@@ -133,6 +133,9 @@ function M.format_task(task)
   local id = task.id or ''
   local description = task.description
   
+  -- Debug: check task structure
+  -- vim.notify('Task ID: ' .. tostring(task.id) .. ', Status: ' .. tostring(task.status), vim.log.levels.INFO)
+  
   -- Generate file path from task ID
   local file_path = ''
   if id and id ~= '' then
@@ -155,9 +158,8 @@ function M.format_task(task)
   
   -- Format main line and description line(s)
   local lines = {}
-  -- Main line with bracketed status: [STATUS] Title [deadline]
-  local formatted_status = string.format('[%-4s]', status)  -- Fixed width for alignment
-  local main_line = string.format('%s %s%s', formatted_status, title, deadline_indicator)
+  -- Main line: - STATUS: Title [deadline]
+  local main_line = string.format('- %s: %s%s', status, title, deadline_indicator)
   
   -- Store task ID in a hidden format for keybinding functionality
   if id and id ~= '' then

@@ -3,12 +3,10 @@ local M = {}
 local config = require('mdtask.config')
 local tasks = require('mdtask.tasks')
 local ui = require('mdtask.ui')
-local highlights = require('mdtask.highlights')
 
 -- Setup function for the plugin
 function M.setup(opts)
   config.setup(opts or {})
-  highlights.setup()
   
   -- Create main command with subcommands
   vim.api.nvim_create_user_command('MdTask', function(opts)
