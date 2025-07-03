@@ -2,6 +2,7 @@ local M = {}
 
 local utils = require('mdtask.utils')
 local config = require('mdtask.config')
+local highlights = require('mdtask.highlights')
 
 M.task_list_buf = nil
 M.task_list_win = nil
@@ -91,6 +92,9 @@ function M.show_task_list(tasks, title)
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
   -- Make buffer modifiable for direct editing
   vim.api.nvim_buf_set_option(buf, 'modifiable', true)
+  
+  -- Apply syntax highlights
+  highlights.apply_highlights(buf)
   
   -- Only set these options for new buffers
   if not reuse_window then
