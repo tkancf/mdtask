@@ -83,7 +83,12 @@ function M.apply_highlights(buf)
     
     -- Description lines
     elseif line:match('^%s+%- ') and not line:match('^%s+%- %[.+%]%(') then
-      vim.api.nvim_buf_add_highlight(buf, -1, 'MdTaskDescription', line_num, 0, -1)
+      -- Check if it's a deadline line
+      if line:match('^%s+%- Deadline:') then
+        vim.api.nvim_buf_add_highlight(buf, -1, 'MdTaskDeadline', line_num, 0, -1)
+      else
+        vim.api.nvim_buf_add_highlight(buf, -1, 'MdTaskDescription', line_num, 0, -1)
+      end
     
     -- Link lines
     elseif line:match('^%s+%- %[.+%]%(') then

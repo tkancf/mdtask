@@ -172,6 +172,16 @@ function M.format_task(task)
     table.insert(lines, string.format('    - %s', description))
   end
   
+  -- Add deadline date as additional line if present
+  if task.deadline then
+    -- Parse deadline and format as readable date
+    local year, month, day = task.deadline:match('(%d%d%d%d)%-(%d%d)%-(%d%d)')
+    if year and month and day then
+      local deadline_text = string.format('    - Deadline: %s/%s/%s', year, month, day)
+      table.insert(lines, deadline_text)
+    end
+  end
+  
   -- Return lines, deadline status, and task ID separately
   return lines, deadline_status, id
 end
