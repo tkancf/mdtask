@@ -3,9 +3,11 @@ local M = {}
 local utils = require('mdtask.utils')
 
 -- Parse a task line and extract information
-function M.parse_task_line(line)
-  -- First, try to find task ID in curly braces
-  local task_id = line:match('{(task/%d+)}')
+function M.parse_task_line(line, line_num)
+  -- Get task ID from the line mapping (since it's now virtual text)
+  local ui = require('mdtask.ui')
+  local task_id = ui.line_to_task_id[line_num]
+  
   if not task_id then
     return {}
   end
@@ -14,8 +16,8 @@ function M.parse_task_line(line)
   local status, title = line:match('^%s*%- (%w+): (.+)$')
   
   if status and title then
-    -- Clean title by removing task ID in curly braces and trimming
-    title = title:gsub('%s*{.+}%s*$', ''):match('^%s*(.-)%s*$')
+    -- Clean title by trimming
+    title = title:match('^%s*(.-)%s*$')
   end
   
   return {
@@ -54,7 +56,7 @@ function M.parse_buffer_for_updates(buf)
     end
     
     -- Check if this is a task line
-    local task_info = M.parse_task_line(line)
+    local task_info = M.parse_task_line(line, i)
     if task_info.task_id then
       -- Save previous task if exists
       if current_task then

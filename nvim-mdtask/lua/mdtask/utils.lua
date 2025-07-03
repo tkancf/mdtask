@@ -158,13 +158,8 @@ function M.format_task(task)
   
   -- Format main line and description line(s)
   local lines = {}
-  -- Main line: - STATUS: Title (without deadline indicator)
+  -- Main line: - STATUS: Title (without deadline indicator and ID)
   local main_line = string.format('- %s: %s', status, title)
-  
-  -- Store task ID in curly braces for keybinding functionality
-  if id and id ~= '' then
-    main_line = main_line .. string.format(' {%s}', id)
-  end
   table.insert(lines, main_line)
   
   -- Add markdown link as second line if file path exists
@@ -177,8 +172,8 @@ function M.format_task(task)
     table.insert(lines, string.format('    - %s', description))
   end
   
-  -- Return lines and deadline status separately
-  return lines, deadline_status
+  -- Return lines, deadline status, and task ID separately
+  return lines, deadline_status, id
 end
 
 -- Get task by ID

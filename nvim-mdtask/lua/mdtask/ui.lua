@@ -102,6 +102,7 @@ M.saved_cursor_pos = nil  -- Save cursor position for refresh
 M.saved_task_id = nil  -- Save current task ID for cursor restoration
 M.current_sort = 'default'  -- Current sort order
 M.current_tasks = nil  -- Store current task list for re-sorting
+M.line_to_task_id = {}  -- Map line numbers to task IDs
 
 -- Show task list in a floating window
 function M.show_task_list(tasks, title)
@@ -137,21 +138,19 @@ function M.show_task_list(tasks, title)
     reuse_window = true
     -- Save current cursor position and task ID before refresh
     M.saved_cursor_pos = vim.api.nvim_win_get_cursor(M.task_list_win)
-    local current_line = vim.api.nvim_get_current_line()
-    local task_id = current_line:match('{(task/%d+)}')
+    local row = M.saved_cursor_pos[1]
+    
+    -- Use line mapping to find task ID
+    local task_id = M.line_to_task_id[row]
     if task_id then
       M.saved_task_id = task_id
     else
       -- If on link or description line, check previous lines
-      local row = M.saved_cursor_pos[1]
       for i = row - 1, math.max(1, row - 4), -1 do
-        local check_line = vim.api.nvim_buf_get_lines(M.task_list_buf, i - 1, i, false)[1]
-        if check_line then
-          task_id = check_line:match('{(task/%d+)}')
-          if task_id then
-            M.saved_task_id = task_id
-            break
-          end
+        task_id = M.line_to_task_id[i]
+        if task_id then
+          M.saved_task_id = task_id
+          break
         end
       end
     end
@@ -184,15 +183,25 @@ function M.show_task_list(tasks, title)
   -- Prepare lines for display
   local lines = { title, string.rep('─', #title), '' }
   
-  -- Store deadline info for virtual text
+  -- Store info for virtual text
   local deadline_info = {}  -- { line_number = deadline_status }
+  local task_id_info = {}  -- { line_number = task_id }
+  M.line_to_task_id = {}  -- Reset line to task ID mapping
   
   for _, task in ipairs(tasks) do
-    local task_lines, deadline_status = utils.format_task(task)
+    local task_lines, deadline_status, task_id = utils.format_task(task)
     
-    -- Store deadline status for the main task line
+    local main_line_num = #lines + 1  -- Line number for the main task line
+    
+    -- Store deadline status for virtual text
     if deadline_status then
-      deadline_info[#lines + 1] = deadline_status  -- +1 for the line we're about to add
+      deadline_info[main_line_num] = deadline_status
+    end
+    
+    -- Store task ID for virtual text and line mapping
+    if task_id and task_id ~= '' then
+      task_id_info[main_line_num] = task_id
+      M.line_to_task_id[main_line_num] = task_id
     end
     
     for _, line in ipairs(task_lines) do
@@ -222,8 +231,9 @@ function M.show_task_list(tasks, title)
   -- Apply syntax highlights
   highlights.apply_highlights(buf)
   
-  -- Apply deadline virtual text
+  -- Apply virtual text
   highlights.apply_deadline_virtual_text(buf, deadline_info)
+  highlights.apply_task_id_virtual_text(buf, task_id_info)
   
   -- Only set these options for new buffers
   if not reuse_window then
@@ -253,21 +263,17 @@ function M.show_task_list(tasks, title)
     
     -- Helper function to get task ID from current or nearby lines
     local function get_task_id_from_position()
-      local line = vim.api.nvim_get_current_line()
+      local row = vim.api.nvim_win_get_cursor(0)[1]
       
-      -- Pattern to find task ID in curly braces
-      local task_id = line:match('{(task/%d+)}')
+      -- Check current line first
+      local task_id = M.line_to_task_id[row]
       
       -- If not found, check previous lines (for when on link or description line)
       if not task_id then
-        local row = vim.api.nvim_win_get_cursor(0)[1]
         -- Check up to 4 lines above (to handle title + link + description)
         for i = row - 1, math.max(1, row - 4), -1 do
-          local check_line = vim.api.nvim_buf_get_lines(buf, i - 1, i, false)[1]
-          if check_line then
-            task_id = check_line:match('{(task/%d+)}')
-            if task_id then break end
-          end
+          task_id = M.line_to_task_id[i]
+          if task_id then break end
         end
       end
       
@@ -581,12 +587,11 @@ Direct Editing:
   
   -- Position cursor
   if reuse_window and M.saved_task_id then
-    -- Try to find the line with the saved task ID
+    -- Try to find the line with the saved task ID using line mapping
     local found = false
-    local lines_content = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-    for i, line in ipairs(lines_content) do
-      if line:match(vim.pesc(M.saved_task_id)) then
-        vim.api.nvim_win_set_cursor(win, {i, 0})
+    for line_num, task_id in pairs(M.line_to_task_id) do
+      if task_id == M.saved_task_id then
+        vim.api.nvim_win_set_cursor(win, {line_num, 0})
         found = true
         break
       end

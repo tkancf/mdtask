@@ -112,4 +112,21 @@ function M.apply_deadline_virtual_text(buf, deadline_info)
   end
 end
 
+-- Apply virtual text for task IDs
+function M.apply_task_id_virtual_text(buf, task_id_info)
+  -- Create namespace for virtual text
+  local ns_id = vim.api.nvim_create_namespace('mdtask_id')
+  
+  -- Clear existing virtual text
+  vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
+  
+  -- Apply virtual text for each task ID
+  for line_num, task_id in pairs(task_id_info) do
+    vim.api.nvim_buf_set_extmark(buf, ns_id, line_num - 1, -1, {
+      virt_text = {{' {' .. task_id .. '}', 'MdTaskId'}},
+      virt_text_pos = 'eol',
+    })
+  end
+end
+
 return M

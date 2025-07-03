@@ -142,9 +142,18 @@ end
 -- Edit task
 function M.edit(task_id)
   if not task_id or task_id == '' then
-    -- Get task ID from user or current line
-    local current_line = vim.api.nvim_get_current_line()
-    task_id = current_line:match('{(task/%d+)}')
+    -- Get task ID from current position using line mapping
+    local ui = require('mdtask.ui')
+    local row = vim.api.nvim_win_get_cursor(0)[1]
+    
+    -- Check current line and nearby lines
+    task_id = ui.line_to_task_id[row]
+    if not task_id then
+      for i = row - 1, math.max(1, row - 4), -1 do
+        task_id = ui.line_to_task_id[i]
+        if task_id then break end
+      end
+    end
     
     if not task_id then
       vim.ui.input({ prompt = 'Task ID: ' }, function(input)
@@ -209,10 +218,19 @@ end
 
 -- Edit specific field of a task
 function M.edit_field(task_id, field, value)
-  -- If no task ID, try to get from current line
+  -- If no task ID, try to get from current position
   if not task_id or task_id == '' then
-    local current_line = vim.api.nvim_get_current_line()
-    task_id = current_line:match('{(task/%d+)}')
+    local ui = require('mdtask.ui')
+    local row = vim.api.nvim_win_get_cursor(0)[1]
+    
+    -- Check current line and nearby lines
+    task_id = ui.line_to_task_id[row]
+    if not task_id then
+      for i = row - 1, math.max(1, row - 4), -1 do
+        task_id = ui.line_to_task_id[i]
+        if task_id then break end
+      end
+    end
     
     if not task_id then
       utils.notify('No task ID found', vim.log.levels.ERROR)
@@ -318,9 +336,18 @@ end
 -- Archive task
 function M.archive(task_id)
   if not task_id or task_id == '' then
-    -- Get task ID from current line
-    local current_line = vim.api.nvim_get_current_line()
-    task_id = current_line:match('{(task/%d+)}')
+    -- Get task ID from current position using line mapping
+    local ui = require('mdtask.ui')
+    local row = vim.api.nvim_win_get_cursor(0)[1]
+    
+    -- Check current line and nearby lines
+    task_id = ui.line_to_task_id[row]
+    if not task_id then
+      for i = row - 1, math.max(1, row - 4), -1 do
+        task_id = ui.line_to_task_id[i]
+        if task_id then break end
+      end
+    end
     
     if not task_id then
       vim.ui.input({ prompt = 'Task ID to archive: ' }, function(input)
