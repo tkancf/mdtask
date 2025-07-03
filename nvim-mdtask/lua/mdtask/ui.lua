@@ -4,14 +4,131 @@ local utils = require('mdtask.utils')
 local config = require('mdtask.config')
 local highlights = require('mdtask.highlights')
 
+-- Sort functions
+local sort_functions = {
+  default = function(tasks)
+    -- Default order (as provided)
+    return tasks
+  end,
+  
+  created_asc = function(tasks)
+    table.sort(tasks, function(a, b)
+      return a.created < b.created
+    end)
+    return tasks
+  end,
+  
+  created_desc = function(tasks)
+    table.sort(tasks, function(a, b)
+      return a.created > b.created
+    end)
+    return tasks
+  end,
+  
+  updated_asc = function(tasks)
+    table.sort(tasks, function(a, b)
+      return a.updated < b.updated
+    end)
+    return tasks
+  end,
+  
+  updated_desc = function(tasks)
+    table.sort(tasks, function(a, b)
+      return a.updated > b.updated
+    end)
+    return tasks
+  end,
+  
+  title_asc = function(tasks)
+    table.sort(tasks, function(a, b)
+      return (a.title or ''):lower() < (b.title or ''):lower()
+    end)
+    return tasks
+  end,
+  
+  title_desc = function(tasks)
+    table.sort(tasks, function(a, b)
+      return (a.title or ''):lower() > (b.title or ''):lower()
+    end)
+    return tasks
+  end,
+  
+  status = function(tasks)
+    -- Sort by status priority: TODO, WIP, WAIT, SCHE, DONE
+    local status_priority = {
+      TODO = 1,
+      WIP = 2,
+      WAIT = 3,
+      SCHE = 4,
+      DONE = 5,
+    }
+    
+    table.sort(tasks, function(a, b)
+      local a_priority = status_priority[a.status] or 99
+      local b_priority = status_priority[b.status] or 99
+      if a_priority == b_priority then
+        -- Secondary sort by updated date
+        return a.updated > b.updated
+      end
+      return a_priority < b_priority
+    end)
+    return tasks
+  end,
+  
+  deadline = function(tasks)
+    -- Tasks with deadline first, then by deadline date
+    table.sort(tasks, function(a, b)
+      local a_deadline = a.deadline
+      local b_deadline = b.deadline
+      
+      if a_deadline and b_deadline then
+        return a_deadline < b_deadline
+      elseif a_deadline then
+        return true  -- a has deadline, b doesn't
+      elseif b_deadline then
+        return false  -- b has deadline, a doesn't
+      else
+        -- Neither has deadline, sort by updated
+        return a.updated > b.updated
+      end
+    end)
+    return tasks
+  end,
+}
+
 M.task_list_buf = nil
 M.task_list_win = nil
 M.saved_cursor_pos = nil  -- Save cursor position for refresh
 M.saved_task_id = nil  -- Save current task ID for cursor restoration
+M.current_sort = 'default'  -- Current sort order
+M.current_tasks = nil  -- Store current task list for re-sorting
 
 -- Show task list in a floating window
 function M.show_task_list(tasks, title)
   title = title or 'mdtask Tasks'
+  
+  -- Store tasks for re-sorting
+  M.current_tasks = tasks
+  
+  -- Apply current sort
+  if M.current_sort ~= 'default' and sort_functions[M.current_sort] then
+    tasks = sort_functions[M.current_sort](vim.tbl_deep_extend('force', {}, tasks))
+  end
+  
+  -- Add sort indicator to title
+  if M.current_sort ~= 'default' then
+    local sort_labels = {
+      created_asc = 'Created ↑',
+      created_desc = 'Created ↓',
+      updated_asc = 'Updated ↑',
+      updated_desc = 'Updated ↓',
+      title_asc = 'Title A-Z',
+      title_desc = 'Title Z-A',
+      status = 'Status',
+      deadline = 'Deadline',
+    }
+    title = title .. ' [' .. (sort_labels[M.current_sort] or M.current_sort) .. ']'
+  end
   
   -- Check if we have an existing valid window and buffer
   local reuse_window = false
@@ -86,7 +203,7 @@ function M.show_task_list(tasks, title)
   -- Add help text at the bottom
   local win_width = vim.api.nvim_win_get_width(win)
   table.insert(lines, string.rep('─', math.min(win_width - 2, 80)))
-  table.insert(lines, 'Keys: <CR> open  sp preview  / search  ? help  s[twhzd] status  s[STD] edit field  sn new  se edit  sa archive  q quit')
+  table.insert(lines, 'Keys: <CR> open  o sort  / search  ? help  s* status/edit  q quit')
   
   -- Set buffer content
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
@@ -291,6 +408,99 @@ function M.show_task_list(tasks, title)
       require('mdtask.tasks').open_web()
     end, opts)
     
+    -- Sort commands
+    -- o to show sort menu
+    vim.keymap.set('n', 'o', function()
+      local sort_options = {
+        'default - Default order',
+        'created_asc - Created (oldest first)',
+        'created_desc - Created (newest first)',
+        'updated_asc - Updated (oldest first)', 
+        'updated_desc - Updated (newest first)',
+        'title_asc - Title (A-Z)',
+        'title_desc - Title (Z-A)',
+        'status - Status priority',
+        'deadline - Deadline (earliest first)',
+      }
+      
+      vim.ui.select(sort_options, {
+        prompt = 'Select sort order:',
+        format_item = function(item)
+          return item
+        end,
+      }, function(choice)
+        if choice then
+          local sort_key = choice:match('^(%S+)')
+          M.current_sort = sort_key
+          -- Re-display with new sort
+          if M.current_tasks then
+            M.show_task_list(M.current_tasks)
+          end
+        end
+      end)
+    end, opts)
+    
+    -- Quick sort shortcuts
+    vim.keymap.set('n', 'oc', function()
+      -- Toggle between created asc/desc
+      if M.current_sort == 'created_desc' then
+        M.current_sort = 'created_asc'
+      else
+        M.current_sort = 'created_desc'
+      end
+      if M.current_tasks then
+        M.show_task_list(M.current_tasks)
+      end
+    end, opts)
+    
+    vim.keymap.set('n', 'ou', function()
+      -- Toggle between updated asc/desc
+      if M.current_sort == 'updated_desc' then
+        M.current_sort = 'updated_asc'
+      else
+        M.current_sort = 'updated_desc'
+      end
+      if M.current_tasks then
+        M.show_task_list(M.current_tasks)
+      end
+    end, opts)
+    
+    vim.keymap.set('n', 'ot', function()
+      -- Toggle between title asc/desc
+      if M.current_sort == 'title_asc' then
+        M.current_sort = 'title_desc'
+      else
+        M.current_sort = 'title_asc'
+      end
+      if M.current_tasks then
+        M.show_task_list(M.current_tasks)
+      end
+    end, opts)
+    
+    vim.keymap.set('n', 'os', function()
+      -- Sort by status
+      M.current_sort = 'status'
+      if M.current_tasks then
+        M.show_task_list(M.current_tasks)
+      end
+    end, opts)
+    
+    vim.keymap.set('n', 'od', function()
+      -- Sort by deadline
+      M.current_sort = 'deadline'
+      if M.current_tasks then
+        M.show_task_list(M.current_tasks)
+      end
+    end, opts)
+    
+    vim.keymap.set('n', 'oO', function()
+      -- Reset to default order
+      M.current_sort = 'default'
+      if M.current_tasks then
+        M.show_task_list(M.current_tasks)
+      end
+    end, opts)
+    
     -- ? to show help
     vim.keymap.set('n', '?', function()
       local help_text = [[
@@ -322,6 +532,15 @@ Field-Specific Edit:
   sS      Edit status (with dialog)
   sT      Edit title
   sD      Edit description
+
+Sorting:
+  o       Sort menu
+  oc      Sort by created date (toggle)
+  ou      Sort by updated date (toggle)
+  ot      Sort by title (toggle)
+  os      Sort by status
+  od      Sort by deadline
+  oO      Reset to default order
 
 Direct Editing:
   :w      Save changes (edit mode)
