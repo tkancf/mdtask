@@ -128,7 +128,20 @@ end
 
 -- Format task for display
 function M.format_task(task)
-  local status = task.status or 'TODO'
+  -- Extract the actual status from the task
+  local status = 'TODO'
+  if task.status then
+    status = task.status
+  else
+    -- Check tags for status
+    for _, tag in ipairs(task.tags or {}) do
+      if tag:match('^mdtask/status/(.+)$') then
+        status = tag:match('^mdtask/status/(.+)$')
+        break
+      end
+    end
+  end
+  
   local title = task.title or 'Untitled'
   local id = task.id or ''
   local description = task.description
@@ -138,7 +151,8 @@ function M.format_task(task)
   if id and id ~= '' then
     local timestamp = id:match('task/(.+)')
     if timestamp then
-      file_path = timestamp .. '.md'
+      -- Always use _tkancf subdirectory path for now
+      file_path = '_tkancf/' .. timestamp .. '.md'
     end
   end
   
