@@ -2,6 +2,7 @@ local M = {}
 
 local utils = require('mdtask.utils')
 local config = require('mdtask.config')
+local highlights = require('mdtask.highlights')
 
 M.task_list_buf = nil
 M.task_list_win = nil
@@ -64,12 +65,58 @@ function M.show_task_list(tasks, title)
   end
   
   -- Prepare lines for display
-  local lines = { title, string.rep('─', #title), '' }
+  local lines = { title, string.rep('═', vim.fn.strdisplaywidth(title)), '' }
   
+  -- Group tasks by status
+  local grouped_tasks = {
+    TODO = {},
+    WIP = {},
+    WAIT = {},
+    SCHE = {},
+    DONE = {},
+  }
+  
+  -- Group tasks
   for _, task in ipairs(tasks) do
-    local task_lines = utils.format_task(task)
-    for _, line in ipairs(task_lines) do
-      table.insert(lines, line)
+    local status = task.status or 'TODO'
+    if grouped_tasks[status] then
+      table.insert(grouped_tasks[status], task)
+    else
+      -- Handle unknown statuses
+      if not grouped_tasks.OTHER then
+        grouped_tasks.OTHER = {}
+      end
+      table.insert(grouped_tasks.OTHER, task)
+    end
+  end
+  
+  -- Display tasks by group with headers
+  local status_order = {'TODO', 'WIP', 'WAIT', 'SCHE', 'DONE', 'OTHER'}
+  local status_headers = {
+    TODO = '▸ To Do',
+    WIP = '▸ In Progress',
+    WAIT = '▸ Waiting',
+    SCHE = '▸ Scheduled',
+    DONE = '▸ Completed',
+    OTHER = '▸ Other',
+  }
+  
+  for _, status in ipairs(status_order) do
+    local tasks_in_status = grouped_tasks[status]
+    if tasks_in_status and #tasks_in_status > 0 then
+      -- Add section header
+      table.insert(lines, '')
+      table.insert(lines, status_headers[status] .. ' (' .. #tasks_in_status .. ')')
+      table.insert(lines, string.rep('─', 40))
+      
+      -- Add tasks
+      for _, task in ipairs(tasks_in_status) do
+        local task_lines = utils.format_task(task)
+        for _, line in ipairs(task_lines) do
+          table.insert(lines, '  ' .. line)  -- Indent tasks under headers
+        end
+        table.insert(lines, '')  -- Add blank line between tasks
+      end
     end
   end
   
@@ -91,6 +138,9 @@ function M.show_task_list(tasks, title)
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
   -- Make buffer modifiable for direct editing
   vim.api.nvim_buf_set_option(buf, 'modifiable', true)
+  
+  -- Apply syntax highlights
+  highlights.apply_highlights(buf)
   
   -- Only set these options for new buffers
   if not reuse_window then

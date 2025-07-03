@@ -10,8 +10,8 @@ function M.parse_task_line(line)
     return {}
   end
   
-  -- Pattern: - STATUS: Title
-  local status, title = line:match('^%s*%- (%w+): (.+)$')
+  -- Pattern: [STATUS] Title
+  local status, title = line:match('^%s*%[(%w+)%]%s+(.+)$')
   
   if status and title then
     -- Clean title by removing HTML comment and trimming
