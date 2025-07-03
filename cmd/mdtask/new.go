@@ -63,6 +63,11 @@ func runNew(cmd *cobra.Command, args []string) error {
 	if cfg.Task.TitlePrefix != "" {
 		newTitle = cfg.Task.TitlePrefix + newTitle
 	}
+	
+	// Validate title
+	if err := task.ValidateTitle(newTitle); err != nil {
+		return fmt.Errorf("invalid title: %w", err)
+	}
 
 	if newDescription == "" {
 		// Use description template if available
@@ -76,6 +81,11 @@ func runNew(cmd *cobra.Command, args []string) error {
 			}
 			newDescription = strings.TrimSpace(desc)
 		}
+	}
+	
+	// Validate description
+	if err := task.ValidateDescription(newDescription); err != nil {
+		return fmt.Errorf("invalid description: %w", err)
 	}
 
 	var content string

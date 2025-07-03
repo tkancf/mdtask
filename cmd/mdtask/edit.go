@@ -61,10 +61,16 @@ func runEdit(cmd *cobra.Command, args []string) error {
 		
 		// Update fields based on flags
 		if editTitle != "" {
+			if err := task.ValidateTitle(editTitle); err != nil {
+				return fmt.Errorf("invalid title: %w", err)
+			}
 			t.Title = editTitle
 		}
 		
 		if cmd.Flags().Changed("description") {
+			if err := task.ValidateDescription(editDescription); err != nil {
+				return fmt.Errorf("invalid description: %w", err)
+			}
 			t.Description = editDescription
 		}
 		

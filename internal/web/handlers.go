@@ -513,11 +513,19 @@ func (s *Server) handleAPITask(w http.ResponseWriter, r *http.Request) {
 
 		// Update task fields
 		if updateRequest.Title != "" {
+			if err := task.ValidateTitle(updateRequest.Title); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 			t.Title = updateRequest.Title
 		}
 		
 		if updateRequest.Description != "" || updateRequest.Title != "" {
 			// Description can be empty, so we update it if title is provided
+			if err := task.ValidateDescription(updateRequest.Description); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
 			t.Description = updateRequest.Description
 		}
 		

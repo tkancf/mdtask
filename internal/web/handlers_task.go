@@ -18,6 +18,14 @@ func (s *Server) parseTaskForm(r *http.Request, t *task.Task) error {
 	t.Title = r.FormValue("title")
 	t.Description = r.FormValue("description")
 	t.Content = r.FormValue("content")
+	
+	// Validate title and description
+	if err := task.ValidateTitle(t.Title); err != nil {
+		return err
+	}
+	if err := task.ValidateDescription(t.Description); err != nil {
+		return err
+	}
 
 	// Parse tags
 	formTags := r.FormValue("tags")
