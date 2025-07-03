@@ -133,6 +133,9 @@ function M.format_task(task)
   local id = task.id or ''
   local description = task.description
   
+  -- Debug: check task structure
+  -- vim.notify('Task ID: ' .. tostring(task.id) .. ', Status: ' .. tostring(task.status), vim.log.levels.INFO)
+  
   -- Generate file path from task ID
   local file_path = ''
   if id and id ~= '' then
