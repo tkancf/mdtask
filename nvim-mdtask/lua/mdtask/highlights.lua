@@ -85,17 +85,7 @@ function M.apply_highlights(buf)
     elseif line:match('^%s+%- ') and not line:match('^%s+%- %[.+%]%(') then
       -- Check if it's a deadline line
       if line:match('^%s+%- Deadline:') then
-        -- Check if it contains OVERDUE text
-        if line:match('%[OVERDUE%]') then
-          -- Highlight the deadline part
-          local deadline_end = line:find('%[OVERDUE%]') - 1
-          vim.api.nvim_buf_add_highlight(buf, -1, 'MdTaskDeadline', line_num, 0, deadline_end)
-          -- Highlight the OVERDUE part
-          local overdue_start = line:find('%[OVERDUE%]') - 1
-          vim.api.nvim_buf_add_highlight(buf, -1, 'MdTaskOverdue', line_num, overdue_start, -1)
-        else
-          vim.api.nvim_buf_add_highlight(buf, -1, 'MdTaskDeadline', line_num, 0, -1)
-        end
+        vim.api.nvim_buf_add_highlight(buf, -1, 'MdTaskDeadline', line_num, 0, -1)
       else
         vim.api.nvim_buf_add_highlight(buf, -1, 'MdTaskDescription', line_num, 0, -1)
       end

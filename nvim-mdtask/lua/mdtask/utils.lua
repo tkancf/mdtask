@@ -178,10 +178,6 @@ function M.format_task(task)
     local year, month, day = task.deadline:match('(%d%d%d%d)%-(%d%d)%-(%d%d)')
     if year and month and day then
       local deadline_text = string.format('    - Deadline: %s/%s/%s', year, month, day)
-      -- Add OVERDUE text if deadline has passed
-      if deadline_status == 'overdue' then
-        deadline_text = deadline_text .. ' [OVERDUE]'
-      end
       table.insert(lines, deadline_text)
     end
   end
