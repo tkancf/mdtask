@@ -1146,18 +1146,22 @@ function M.show_task_form(callback, task, form_title)
           end
           form_data.status = status
           
-          -- Skip tags input and go directly to content editor
+          -- Skip tags input and create task immediately
           form_data.tags = ''
+          form_data.content = ''  -- Empty content initially
           
-          -- Show content editor in a buffer
-          M.show_content_editor(form_data, callback)
+          -- Create task with basic info, then open file for editing
+          if callback then
+            callback(form_data)
+          end
         end
       )
     end)
   end)
 end
 
--- Show content editor in a floating window
+-- Deprecated: Show content editor in a floating window
+-- This function is no longer used - tasks are created and files opened directly
 function M.show_content_editor(form_data, callback)
   -- Calculate larger window size (90% of screen)
   local win_width = vim.api.nvim_get_option('columns')

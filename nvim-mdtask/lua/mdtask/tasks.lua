@@ -80,7 +80,7 @@ end
 -- Create new task
 function M.new()
   ui.show_task_form(function(task_data)
-    local args = {'new'}
+    local args = {'new', '--format', 'json'}
     
     -- Add title (required)
     if task_data.title and task_data.title ~= '' then
@@ -129,11 +129,24 @@ function M.new()
         return
       end
       
-      utils.notify('Task created successfully')
-      
-      -- Refresh task list if it's open
-      if ui.task_list_buf and vim.api.nvim_buf_is_valid(ui.task_list_buf) then
-        M.list()
+      -- Parse JSON response to get file path
+      local ok, task_response = pcall(vim.json.decode, output)
+      if ok and task_response and task_response.file_path then
+        utils.notify('Task created successfully')
+        
+        -- Open the created file in a new tab for editing
+        vim.cmd('tabnew ' .. vim.fn.fnameescape(task_response.file_path))
+        
+        -- Refresh task list if it's open
+        if ui.task_list_buf and vim.api.nvim_buf_is_valid(ui.task_list_buf) then
+          M.list()
+        end
+      else
+        utils.notify('Task created but could not open file for editing', vim.log.levels.WARN)
+        -- Refresh task list if it's open
+        if ui.task_list_buf and vim.api.nvim_buf_is_valid(ui.task_list_buf) then
+          M.list()
+        end
       end
     end)
   end)
