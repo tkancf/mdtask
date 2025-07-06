@@ -157,10 +157,63 @@ function M.format_task(task, view_mode)
     end
   end
   
-  -- Format main line and description line(s)
+  -- Add visual indicators
+  local indicators = {}
+  
+  -- Priority indicator (high priority tasks get ⚡)
+  if task.tags then
+    for _, tag in ipairs(task.tags) do
+      if tag:match('priority/high') or tag:match('urgent') then
+        table.insert(indicators, '⚡')
+        break
+      end
+    end
+  end
+  
+  -- Deadline urgency indicators
+  if task.deadline then
+    local today = os.date('%Y-%m-%d')
+    local deadline_date = task.deadline:sub(1, 10) -- Get just the date part
+    
+    if deadline_date < today then
+      table.insert(indicators, '🔴') -- Overdue
+    elseif deadline_date == today then
+      table.insert(indicators, '🟡') -- Due today
+    else
+      -- Check if due within next 3 days
+      local deadline_time = os.time{year=deadline_date:sub(1,4), month=deadline_date:sub(6,7), day=deadline_date:sub(9,10)}
+      local today_time = os.time()
+      local three_days = today_time + (3 * 24 * 60 * 60)
+      if deadline_time <= three_days then
+        table.insert(indicators, '🟠') -- Due soon
+      end
+    end
+  end
+  
+  -- Work in progress indicator
+  if status == 'WIP' then
+    table.insert(indicators, '🔄')
+  end
+  
+  -- Waiting indicator
+  if status == 'WAIT' then
+    table.insert(indicators, '⏳')
+  end
+  
+  -- Done indicator
+  if status == 'DONE' then
+    table.insert(indicators, '✅')
+  end
+  
+  -- Build indicator string
+  local indicator_str = ''
+  if #indicators > 0 then
+    indicator_str = table.concat(indicators, '') .. ' '
+  end
+  
+  -- Format main line with indicators
   local lines = {}
-  -- Main line: - STATUS: Title (without deadline indicator and ID)
-  local main_line = string.format('- %s: %s', status, title)
+  local main_line = string.format('- %s%s: %s', indicator_str, status, title)
   table.insert(lines, main_line)
   
   -- Compact mode: only show main line

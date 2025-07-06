@@ -14,6 +14,14 @@ M.view_modes = {
 -- Current view mode (default to detailed)
 M.current_view_mode = M.view_modes.detailed
 
+-- Filter settings
+M.current_filters = {
+  status = nil,  -- nil = all, or specific status
+  tags = {},     -- empty = all, or list of tags to include
+  deadline = nil, -- nil = all, 'overdue', 'today', 'week', 'none'
+  search = nil   -- nil = no search, or search term
+}
+
 -- Sort functions
 local sort_functions = {
   default = function(tasks)
@@ -106,6 +114,98 @@ local sort_functions = {
   end,
 }
 
+-- Filter functions
+local function apply_filters(tasks)
+  local filtered = {}
+  local today = os.date('%Y-%m-%d')
+  
+  for _, task in ipairs(tasks) do
+    local include = true
+    
+    -- Status filter
+    if M.current_filters.status and task.status ~= M.current_filters.status then
+      include = false
+    end
+    
+    -- Tags filter
+    if #M.current_filters.tags > 0 then
+      local has_required_tag = false
+      for _, required_tag in ipairs(M.current_filters.tags) do
+        for _, task_tag in ipairs(task.tags or {}) do
+          if task_tag == required_tag then
+            has_required_tag = true
+            break
+          end
+        end
+        if has_required_tag then break end
+      end
+      if not has_required_tag then
+        include = false
+      end
+    end
+    
+    -- Deadline filter
+    if M.current_filters.deadline then
+      if M.current_filters.deadline == 'none' then
+        if task.deadline then include = false end
+      elseif M.current_filters.deadline == 'overdue' then
+        if not task.deadline or task.deadline >= today then include = false end
+      elseif M.current_filters.deadline == 'today' then
+        if not task.deadline or task.deadline ~= today then include = false end
+      elseif M.current_filters.deadline == 'week' then
+        if not task.deadline then include = false
+        else
+          local deadline_time = os.time{year=task.deadline:sub(1,4), month=task.deadline:sub(6,7), day=task.deadline:sub(9,10)}
+          local today_time = os.time()
+          local week_time = today_time + (7 * 24 * 60 * 60)
+          if deadline_time > week_time then include = false end
+        end
+      end
+    end
+    
+    -- Search filter
+    if M.current_filters.search and M.current_filters.search ~= '' then
+      local search_term = M.current_filters.search:lower()
+      local found = false
+      
+      -- Search in title
+      if task.title and task.title:lower():find(search_term, 1, true) then
+        found = true
+      end
+      
+      -- Search in description
+      if not found and task.description and task.description:lower():find(search_term, 1, true) then
+        found = true
+      end
+      
+      -- Search in content
+      if not found and task.content and task.content:lower():find(search_term, 1, true) then
+        found = true
+      end
+      
+      -- Search in tags
+      if not found and task.tags then
+        for _, tag in ipairs(task.tags) do
+          if tag:lower():find(search_term, 1, true) then
+            found = true
+            break
+          end
+        end
+      end
+      
+      if not found then
+        include = false
+      end
+    end
+    
+    if include then
+      table.insert(filtered, task)
+    end
+  end
+  
+  return filtered
+end
+
 M.task_list_buf = nil
 M.task_list_win = nil
 M.saved_cursor_pos = nil  -- Save cursor position for refresh
@@ -118,10 +218,30 @@ M.line_to_task_id = {}  -- Map line numbers to task IDs
 function M.show_task_list(tasks, title)
   title = title or 'mdtask Tasks'
   
-  -- Store tasks for re-sorting
+  -- Store original tasks for re-filtering/sorting
   M.current_tasks = tasks
   
-  -- Note: Sorting will be applied to root tasks only to maintain hierarchy
+  -- Apply filters first
+  local filtered_tasks = apply_filters(tasks)
+  
+  -- Add filter indicators to title
+  local filter_parts = {}
+  if M.current_filters.status then
+    table.insert(filter_parts, 'Status:' .. M.current_filters.status)
+  end
+  if #M.current_filters.tags > 0 then
+    table.insert(filter_parts, 'Tags:' .. table.concat(M.current_filters.tags, ','))
+  end
+  if M.current_filters.deadline then
+    table.insert(filter_parts, 'Deadline:' .. M.current_filters.deadline)
+  end
+  if M.current_filters.search then
+    table.insert(filter_parts, 'Search:' .. M.current_filters.search)
+  end
+  
+  if #filter_parts > 0 then
+    title = title .. ' {' .. table.concat(filter_parts, ' ') .. '}'
+  end
   
   -- Add sort indicator to title
   if M.current_sort ~= 'default' then
@@ -195,12 +315,12 @@ function M.show_task_list(tasks, title)
   local task_id_info = {}  -- { line_number = task_id }
   M.line_to_task_id = {}  -- Reset line to task ID mapping
   
-  -- Build a map of parent tasks and their children
+  -- Build a map of parent tasks and their children using filtered tasks
   local parent_map = {}  -- parent_id -> list of child tasks
   local root_tasks = {}  -- tasks without parents
   local task_by_id = {}  -- quick lookup map
   
-  for _, task in ipairs(tasks) do
+  for _, task in ipairs(filtered_tasks) do
     task_by_id[task.id] = task
     if task.parent_id and task.parent_id ~= '' then
       parent_map[task.parent_id] = parent_map[task.parent_id] or {}
@@ -570,6 +690,178 @@ function M.show_task_list(tasks, title)
       end
     end, opts)
     
+    -- Filter commands
+    -- f to show filter menu
+    vim.keymap.set('n', 'f', function()
+      local filter_options = {
+        'status - Filter by status',
+        'tags - Filter by tags',
+        'deadline - Filter by deadline',
+        'search - Search in tasks',
+        'clear - Clear all filters',
+      }
+      
+      vim.ui.select(filter_options, {
+        prompt = 'Select filter type:',
+        format_item = function(item)
+          return item
+        end,
+      }, function(choice)
+        if choice then
+          local filter_type = choice:match('^(%S+)')
+          
+          if filter_type == 'status' then
+            local status_options = {'TODO', 'WIP', 'WAIT', 'SCHE', 'DONE', 'clear'}
+            vim.ui.select(status_options, {
+              prompt = 'Filter by status:',
+            }, function(status)
+              if status == 'clear' then
+                M.current_filters.status = nil
+              elseif status then
+                M.current_filters.status = status
+              end
+              if M.current_tasks then
+                M.show_task_list(M.current_tasks)
+              end
+            end)
+            
+          elseif filter_type == 'tags' then
+            vim.ui.input({ prompt = 'Filter by tags (comma-separated): ' }, function(tags_input)
+              if tags_input == '' then
+                M.current_filters.tags = {}
+              elseif tags_input then
+                M.current_filters.tags = {}
+                for tag in tags_input:gmatch('[^,]+') do
+                  table.insert(M.current_filters.tags, tag:match('^%s*(.-)%s*$'))
+                end
+              end
+              if M.current_tasks then
+                M.show_task_list(M.current_tasks)
+              end
+            end)
+            
+          elseif filter_type == 'deadline' then
+            local deadline_options = {'overdue', 'today', 'week', 'none', 'clear'}
+            vim.ui.select(deadline_options, {
+              prompt = 'Filter by deadline:',
+              format_item = function(item)
+                local labels = {
+                  overdue = 'overdue - Past due',
+                  today = 'today - Due today',
+                  week = 'week - Due this week',
+                  none = 'none - No deadline',
+                  clear = 'clear - Show all'
+                }
+                return labels[item] or item
+              end,
+            }, function(deadline)
+              if deadline == 'clear' then
+                M.current_filters.deadline = nil
+              elseif deadline then
+                M.current_filters.deadline = deadline
+              end
+              if M.current_tasks then
+                M.show_task_list(M.current_tasks)
+              end
+            end)
+            
+          elseif filter_type == 'search' then
+            vim.ui.input({ 
+              prompt = 'Search in tasks: ',
+              default = M.current_filters.search or ''
+            }, function(search_term)
+              if search_term == '' then
+                M.current_filters.search = nil
+              elseif search_term then
+                M.current_filters.search = search_term
+              end
+              if M.current_tasks then
+                M.show_task_list(M.current_tasks)
+              end
+            end)
+            
+          elseif filter_type == 'clear' then
+            M.current_filters = {
+              status = nil,
+              tags = {},
+              deadline = nil,
+              search = nil
+            }
+            if M.current_tasks then
+              M.show_task_list(M.current_tasks)
+            end
+          end
+        end
+      end)
+    end, opts)
+    
+    -- Quick filter shortcuts
+    vim.keymap.set('n', 'fs', function()
+      -- Quick status filter toggle
+      local statuses = {'TODO', 'WIP', 'WAIT', 'SCHE', 'DONE'}
+      local current_index = 0
+      for i, status in ipairs(statuses) do
+        if M.current_filters.status == status then
+          current_index = i
+          break
+        end
+      end
+      
+      local next_index = (current_index % #statuses) + 1
+      M.current_filters.status = statuses[next_index]
+      if M.current_tasks then
+        M.show_task_list(M.current_tasks)
+      end
+    end, opts)
+    
+    vim.keymap.set('n', 'fd', function()
+      -- Quick deadline filter toggle
+      local deadlines = {'overdue', 'today', 'week', 'none'}
+      local current_index = 0
+      for i, deadline in ipairs(deadlines) do
+        if M.current_filters.deadline == deadline then
+          current_index = i
+          break
+        end
+      end
+      
+      local next_index = (current_index % #deadlines) + 1
+      M.current_filters.deadline = deadlines[next_index]
+      if M.current_tasks then
+        M.show_task_list(M.current_tasks)
+      end
+    end, opts)
+    
+    vim.keymap.set('n', 'fc', function()
+      -- Clear all filters
+      M.current_filters = {
+        status = nil,
+        tags = {},
+        deadline = nil,
+        search = nil
+      }
+      if M.current_tasks then
+        M.show_task_list(M.current_tasks)
+      end
+    end, opts)
+    
+    -- Quick search
+    vim.keymap.set('n', '/', function()
+      vim.ui.input({ 
+        prompt = 'Search: ',
+        default = M.current_filters.search or ''
+      }, function(search_term)
+        if search_term == '' then
+          M.current_filters.search = nil
+        elseif search_term then
+          M.current_filters.search = search_term
+        end
+        if M.current_tasks then
+          M.show_task_list(M.current_tasks)
+        end
+      end)
+    end, opts)
+    
     -- Task operations
     vim.keymap.set('n', 'my', function()
       require('mdtask.tasks').copy_task()
@@ -659,6 +951,13 @@ Sorting:
   os      Sort by status
   od      Sort by deadline
   oO      Reset to default order
+
+Filtering:
+  f       Filter menu
+  fs      Quick status filter (cycle)
+  fd      Quick deadline filter (cycle)
+  fc      Clear all filters
+  /       Quick search
 
 Direct Editing:
   :w      Save changes (edit mode)
