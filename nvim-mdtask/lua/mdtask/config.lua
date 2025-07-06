@@ -1,9 +1,22 @@
 local M = {}
 
+-- Function to find mdtask binary
+local function find_mdtask_binary()
+  -- First try current working directory
+  local cwd = vim.fn.getcwd()
+  local local_binary = cwd .. '/mdtask'
+  if vim.fn.executable(local_binary) == 1 then
+    return local_binary
+  end
+  
+  -- Fall back to system PATH
+  return 'mdtask'
+end
+
 -- Default configuration
 local defaults = {
   -- Path to mdtask binary
-  mdtask_path = '/Users/tkan/src/github.com/tkancf/mdtask/mdtask',
+  mdtask_path = find_mdtask_binary(),
   
   -- Default paths to search for tasks
   task_paths = {},  -- Empty means use current directory
@@ -50,6 +63,12 @@ function M.setup(opts)
 end
 
 function M.get()
+  return M.options
+end
+
+-- Reload configuration (useful for development)
+function M.reload()
+  M.options = vim.tbl_deep_extend('force', defaults, {})
   return M.options
 end
 
