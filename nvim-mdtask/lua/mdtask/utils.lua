@@ -4,9 +4,7 @@ local config = require('mdtask.config')
 
 -- Execute mdtask command and return result
 function M.execute_mdtask(args, callback, stdin_input, skip_json)
-  print("DEBUG: execute_mdtask called with args:", vim.inspect(args))
   local cfg = config.get()
-  print("DEBUG: config:", vim.inspect(cfg))
   local cmd = cfg.mdtask_path
   local full_args = {}
   
@@ -63,20 +61,15 @@ function M.execute_mdtask(args, callback, stdin_input, skip_json)
         end
       end,
       on_exit = function(_, code)
-        print("DEBUG: Job exited with code:", code)
         local stdout_output = table.concat(stdout_data, '\n')
         local stderr_output = table.concat(stderr_data, '\n')
-        print("DEBUG: stdout:", stdout_output)
-        print("DEBUG: stderr:", stderr_output)
         
         -- For mdtask new command, success is determined by exit code
         -- Even if there's stderr output (like interactive prompts), it might still succeed
         if code == 0 then
-          print("DEBUG: Calling success callback")
           callback(nil, stdout_output)
         else
           -- Command failed
-          print("DEBUG: Calling error callback")
           local error_msg = stderr_output
           if error_msg == '' then
             error_msg = 'Command failed with exit code: ' .. code
@@ -86,15 +79,11 @@ function M.execute_mdtask(args, callback, stdin_input, skip_json)
       end
     }
     
-    print("DEBUG: About to start job with command:", cmd, "args:", vim.inspect(full_args))
     local job_id = vim.fn.jobstart({cmd, unpack(full_args)}, job_opts)
-    print("DEBUG: Job started with ID:", job_id)
     
     if job_id == 0 then
-      print("DEBUG: Job failed to start (invalid command)")
       callback('Failed to start job', nil)
     elseif job_id == -1 then
-      print("DEBUG: Job failed to start (command not executable)")
       callback('Invalid command', nil)
     elseif stdin_input then
       -- Send stdin input to the job
