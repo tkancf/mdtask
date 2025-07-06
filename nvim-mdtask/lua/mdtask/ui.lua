@@ -437,8 +437,8 @@ function M.show_task_list(tasks, title)
     end, opts)
     
     -- Sort commands
-    -- so to show sort menu
-    vim.keymap.set('n', 'so', function()
+    -- o to show sort menu
+    vim.keymap.set('n', 'o', function()
       local sort_options = {
         'default - Default order',
         'created_asc - Created (oldest first)',
@@ -469,7 +469,7 @@ function M.show_task_list(tasks, title)
     end, opts)
     
     -- Quick sort shortcuts
-    vim.keymap.set('n', 'soc', function()
+    vim.keymap.set('n', 'oc', function()
       -- Toggle between created asc/desc
       if M.current_sort == 'created_desc' then
         M.current_sort = 'created_asc'
@@ -481,7 +481,7 @@ function M.show_task_list(tasks, title)
       end
     end, opts)
     
-    vim.keymap.set('n', 'sou', function()
+    vim.keymap.set('n', 'ou', function()
       -- Toggle between updated asc/desc
       if M.current_sort == 'updated_desc' then
         M.current_sort = 'updated_asc'
@@ -493,7 +493,7 @@ function M.show_task_list(tasks, title)
       end
     end, opts)
     
-    vim.keymap.set('n', 'sot', function()
+    vim.keymap.set('n', 'ot', function()
       -- Toggle between title asc/desc
       if M.current_sort == 'title_asc' then
         M.current_sort = 'title_desc'
@@ -505,7 +505,7 @@ function M.show_task_list(tasks, title)
       end
     end, opts)
     
-    vim.keymap.set('n', 'sos', function()
+    vim.keymap.set('n', 'os', function()
       -- Sort by status
       M.current_sort = 'status'
       if M.current_tasks then
@@ -513,7 +513,7 @@ function M.show_task_list(tasks, title)
       end
     end, opts)
     
-    vim.keymap.set('n', 'sod', function()
+    vim.keymap.set('n', 'od', function()
       -- Sort by deadline
       M.current_sort = 'deadline'
       if M.current_tasks then
@@ -521,7 +521,7 @@ function M.show_task_list(tasks, title)
       end
     end, opts)
     
-    vim.keymap.set('n', 'soO', function()
+    vim.keymap.set('n', 'oO', function()
       -- Reset to default order
       M.current_sort = 'default'
       if M.current_tasks then
@@ -593,13 +593,13 @@ Field-Specific Edit:
   sD      Edit description
 
 Sorting:
-  so      Sort menu
-  soc     Sort by created date (toggle)
-  sou     Sort by updated date (toggle)
-  sot     Sort by title (toggle)
-  sos     Sort by status
-  sod     Sort by deadline
-  soO     Reset to default order
+  o       Sort menu
+  oc      Sort by created date (toggle)
+  ou      Sort by updated date (toggle)
+  ot      Sort by title (toggle)
+  os      Sort by status
+  od      Sort by deadline
+  oO      Reset to default order
 
 Direct Editing:
   :w      Save changes (edit mode)
