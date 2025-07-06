@@ -400,4 +400,179 @@ function M.open_web()
   end)
 end
 
+-- Copy task (store in module-level clipboard)
+M.task_clipboard = nil
+
+-- Copy task
+function M.copy_task(task_id)
+  if not task_id or task_id == '' then
+    -- Get task ID from current position using line mapping
+    local ui = require('mdtask.ui')
+    local row = vim.api.nvim_win_get_cursor(0)[1]
+    
+    -- Check current line and nearby lines
+    task_id = ui.line_to_task_id[row]
+    if not task_id then
+      for i = row - 1, math.max(1, row - 4), -1 do
+        task_id = ui.line_to_task_id[i]
+        if task_id then break end
+      end
+    end
+    
+    if not task_id then
+      utils.notify('No task found to copy', vim.log.levels.ERROR)
+      return
+    end
+  end
+  
+  utils.get_task_by_id(task_id, function(err, task)
+    if err then
+      utils.notify('Failed to get task: ' .. err, vim.log.levels.ERROR)
+      return
+    end
+    
+    -- Store task data without ID
+    M.task_clipboard = {
+      title = task.title,
+      description = task.description,
+      status = task.status,
+      tags = vim.deepcopy(task.tags),
+      content = task.content,
+      deadline = task.deadline
+    }
+    
+    utils.notify('Task copied')
+  end)
+end
+
+-- Paste task
+function M.paste_task()
+  if not M.task_clipboard then
+    utils.notify('No task in clipboard', vim.log.levels.ERROR)
+    return
+  end
+  
+  local args = {'new'}
+  
+  -- Add title (required)
+  if M.task_clipboard.title then
+    table.insert(args, '--title')
+    table.insert(args, M.task_clipboard.title)
+  end
+  
+  -- Add description
+  table.insert(args, '--description')
+  table.insert(args, M.task_clipboard.description or '')
+  
+  -- Add content
+  table.insert(args, '--content')
+  table.insert(args, M.task_clipboard.content or '')
+  
+  -- Add status
+  if M.task_clipboard.status then
+    table.insert(args, '--status')
+    table.insert(args, M.task_clipboard.status)
+  end
+  
+  -- Add tags
+  if M.task_clipboard.tags and #M.task_clipboard.tags > 0 then
+    -- Filter out mdtask system tags
+    local user_tags = {}
+    for _, tag in ipairs(M.task_clipboard.tags) do
+      if not tag:match('^mdtask/') then
+        table.insert(user_tags, tag)
+      end
+    end
+    if #user_tags > 0 then
+      table.insert(args, '--tags')
+      table.insert(args, table.concat(user_tags, ','))
+    end
+  end
+  
+  -- Add deadline if present
+  if M.task_clipboard.deadline then
+    -- Extract just the date part from deadline
+    local deadline_date = M.task_clipboard.deadline:match('(%d%d%d%d%-%d%d%-%d%d)')
+    if deadline_date then
+      table.insert(args, '--deadline')
+      table.insert(args, deadline_date)
+    end
+  end
+  
+  utils.execute_mdtask(args, function(err, output)
+    if err then
+      utils.notify('Failed to paste task: ' .. err, vim.log.levels.ERROR)
+      return
+    end
+    
+    utils.notify('Task pasted successfully')
+    
+    -- Refresh task list if it's open
+    if ui.task_list_buf and vim.api.nvim_buf_is_valid(ui.task_list_buf) then
+      M.list()
+    end
+  end)
+end
+
+-- Delete task
+function M.delete_task(task_id)
+  if not task_id or task_id == '' then
+    -- Get task ID from current position using line mapping
+    local ui = require('mdtask.ui')
+    local row = vim.api.nvim_win_get_cursor(0)[1]
+    
+    -- Check current line and nearby lines
+    task_id = ui.line_to_task_id[row]
+    if not task_id then
+      for i = row - 1, math.max(1, row - 4), -1 do
+        task_id = ui.line_to_task_id[i]
+        if task_id then break end
+      end
+    end
+    
+    if not task_id then
+      utils.notify('No task found to delete', vim.log.levels.ERROR)
+      return
+    end
+  end
+  
+  -- Get task details for confirmation
+  utils.get_task_by_id(task_id, function(err, task)
+    if err then
+      utils.notify('Failed to get task: ' .. err, vim.log.levels.ERROR)
+      return
+    end
+    
+    -- Confirm deletion
+    vim.ui.select(
+      {'Yes', 'No'},
+      {
+        prompt = string.format('Delete task "%s"?', task.title),
+        format_item = function(item)
+          return item
+        end,
+      },
+      function(choice)
+        if choice == 'Yes' then
+          local args = {'delete', task_id}
+          
+          utils.execute_mdtask(args, function(err, output)
+            if err then
+              utils.notify('Failed to delete task: ' .. err, vim.log.levels.ERROR)
+              return
+            end
+            
+            utils.notify('Task deleted successfully')
+            
+            -- Refresh task list if it's open
+            if ui.task_list_buf and vim.api.nvim_buf_is_valid(ui.task_list_buf) then
+              M.list()
+            end
+          end)
+        end
+      end
+    )
+  end)
+end
+
 return M

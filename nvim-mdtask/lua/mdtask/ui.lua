@@ -519,6 +519,19 @@ function M.show_task_list(tasks, title)
       end
     end, opts)
     
+    -- Task operations
+    vim.keymap.set('n', 'yy', function()
+      require('mdtask.tasks').copy_task()
+    end, opts)
+    
+    vim.keymap.set('n', 'p', function()
+      require('mdtask.tasks').paste_task()
+    end, opts)
+    
+    vim.keymap.set('n', 'dd', function()
+      require('mdtask.tasks').delete_task()
+    end, opts)
+    
     -- ? to show help
     vim.keymap.set('n', '?', function()
       local help_text = [[
@@ -537,6 +550,9 @@ Task Management:
   sn      New task
   se      Edit task (full form)
   sa      Archive task
+  yy      Copy task (without ID)
+  p       Paste task (create new)
+  dd      Delete task (with confirmation)
 
 Quick Status Change:
   ss      Toggle status
