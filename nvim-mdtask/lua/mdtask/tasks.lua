@@ -126,6 +126,9 @@ function M.new()
     end
     
     print("DEBUG: About to execute mdtask with args:", vim.inspect(args))
+    -- Send content via stdin to avoid interactive prompt
+    local stdin_content = (task_data.content or '') .. '\n'
+    print("DEBUG: Sending stdin content:", vim.inspect(stdin_content))
     utils.execute_mdtask(args, function(err, output)
       print("DEBUG: mdtask execution completed. err:", err, "output:", output)
       if err then

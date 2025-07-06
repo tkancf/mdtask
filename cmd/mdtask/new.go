@@ -90,8 +90,11 @@ func runNew(cmd *cobra.Command, args []string) error {
 	}
 
 	var content string
-	if newContent != "" {
-		// Use content from flag
+	// Check if content flag was explicitly provided (even if empty)
+	contentFlagProvided := cmd.Flags().Changed("content")
+	
+	if contentFlagProvided {
+		// Use content from flag (including empty string)
 		content = newContent
 	} else if ctx.Config.Task.ContentTemplate != "" {
 		// Use content template if available
