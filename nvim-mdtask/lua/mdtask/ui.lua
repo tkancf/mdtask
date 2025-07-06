@@ -208,6 +208,7 @@ end
 
 M.task_list_buf = nil
 M.task_list_win = nil
+M.help_win = nil  -- Track help window to close it when main window closes
 M.saved_cursor_pos = nil  -- Save cursor position for refresh
 M.saved_task_id = nil  -- Save current task ID for cursor restoration
 M.current_sort = 'default'  -- Current sort order
@@ -441,6 +442,18 @@ function M.show_task_list(tasks, title)
         -- Mark buffer as not modified
         vim.api.nvim_buf_set_option(buf, 'modified', false)
       end,
+    })
+    
+    -- Set up autocmd to close help window when main window closes
+    vim.api.nvim_create_autocmd({'WinClosed', 'BufWipeout'}, {
+      buffer = buf,
+      callback = function()
+        if M.help_win and vim.api.nvim_win_is_valid(M.help_win) then
+          vim.api.nvim_win_close(M.help_win, true)
+          M.help_win = nil
+        end
+      end,
+      desc = 'Close help window when main mdtask window closes'
     })
     
     -- Set up keymaps
@@ -1013,26 +1026,31 @@ Direct Editing:
         zindex = 100,  -- Ensure it's on top
       })
       
+      -- Store help window reference globally
+      M.help_win = help_win
+      
       -- Set window options
       vim.api.nvim_win_set_option(help_win, 'number', false)
       vim.api.nvim_win_set_option(help_win, 'relativenumber', false)
       vim.api.nvim_win_set_option(help_win, 'cursorline', true)
       vim.api.nvim_win_set_option(help_win, 'wrap', false)
       
+      -- Function to close help window properly
+      local function close_help()
+        if vim.api.nvim_win_is_valid(help_win) then
+          vim.api.nvim_win_close(help_win, true)
+        end
+        M.help_win = nil
+        if vim.api.nvim_win_is_valid(current_win) then
+          vim.api.nvim_set_current_win(current_win)
+        end
+      end
+      
       -- Keymaps for closing help
       local help_opts = { buffer = help_buf, silent = true }
-      vim.keymap.set('n', 'q', function()
-        vim.api.nvim_win_close(help_win, true)
-        vim.api.nvim_set_current_win(current_win)
-      end, help_opts)
-      vim.keymap.set('n', '<Esc>', function()
-        vim.api.nvim_win_close(help_win, true)
-        vim.api.nvim_set_current_win(current_win)
-      end, help_opts)
-      vim.keymap.set('n', '?', function()
-        vim.api.nvim_win_close(help_win, true)
-        vim.api.nvim_set_current_win(current_win)
-      end, help_opts)
+      vim.keymap.set('n', 'q', close_help, help_opts)
+      vim.keymap.set('n', '<Esc>', close_help, help_opts)
+      vim.keymap.set('n', '?', close_help, help_opts)
     end, opts)
   end  -- end of if not reuse_window
   
