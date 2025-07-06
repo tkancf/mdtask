@@ -258,12 +258,14 @@ internal/
    - Shows undo availability in status line
    - Groups related changes by timestamp
 
-### Remaining Features
-
-1. **Task Creation**
+7. **Task Creation** ✓
    - Quick task creation with 'n' key
-   - Title input
-   - Optional tags and deadline
+   - Interactive form with title, description, and tags
+   - Tab navigation between fields
+   - Ctrl+S to save, Esc to cancel
+   - Auto-generates task ID and timestamps
+
+### Remaining Features
 
 2. **Task Editing**
    - External editor integration
@@ -284,6 +286,7 @@ internal/
 # Keyboard shortcuts
 - j/k or ↑/↓: Navigate list
 - Enter: View task details
+- n: Create new task
 - v: Select/deselect task for multi-select
 - a: Select all tasks
 - A: Clear all selections
@@ -292,6 +295,12 @@ internal/
 - /: Search tasks
 - q: Quit
 - ?: Show help
+
+# Task creation form
+- Tab/↓: Next field
+- Shift+Tab/↑: Previous field
+- Ctrl+S: Save task
+- Esc: Cancel
 ```
 
 ## Next Steps

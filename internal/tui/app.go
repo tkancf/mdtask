@@ -26,6 +26,7 @@ const (
 	listView viewState = iota
 	detailView
 	statusSelectView
+	createView
 )
 
 type undoAction struct {
@@ -41,6 +42,7 @@ type App struct {
 	tasks          []*task.Task
 	detail         *views.DetailView
 	statusSelector *components.StatusSelector
+	taskForm       *components.TaskForm
 	selectedTask   *task.Task
 	selectedTasks  map[string]*task.Task // For multi-select
 	undoHistory    []undoAction          // History for undo
@@ -136,6 +138,10 @@ func NewApp(repo repository.Repository) *App {
 			key.NewBinding(
 				key.WithKeys("enter"),
 				key.WithHelp("enter", "view task"),
+			),
+			key.NewBinding(
+				key.WithKeys("n"),
+				key.WithHelp("n", "new task"),
 			),
 			key.NewBinding(
 				key.WithKeys("v"),
@@ -251,6 +257,11 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				if len(a.undoHistory) > 0 {
 					return a, a.undoLastAction()
 				}
+			case "n":
+				// Create new task
+				a.taskForm = components.NewTaskForm()
+				a.viewState = createView
+				return a, a.taskForm.Init()
 			}
 		}
 
@@ -314,6 +325,24 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case undoMsg:
 		return a, a.processUndo(msg.actions)
 
+	case components.TaskCreatedMsg:
+		a.viewState = listView
+		a.taskForm = nil
+		return a, a.createTask(msg.Task)
+
+	case components.TaskFormCancelledMsg:
+		a.viewState = listView
+		a.taskForm = nil
+		return a, nil
+
+	case taskCreatedMsg:
+		if msg.err != nil {
+			a.err = msg.err
+			return a, nil
+		}
+		// Reload tasks to show the new one
+		return a, a.loadTasks
+
 	case error:
 		// TODO: Better error handling
 		a.quitting = true
@@ -332,6 +361,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case statusSelectView:
 		if a.statusSelector != nil {
 			a.statusSelector, cmd = a.statusSelector.Update(msg)
+		}
+	case createView:
+		if a.taskForm != nil {
+			a.taskForm, cmd = a.taskForm.Update(msg)
 		}
 	}
 	
@@ -355,6 +388,12 @@ func (a *App) View() string {
 			help := lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Padding(1, 2).
 				Render("↑/k: up • ↓/j: down • enter: select • esc: cancel")
 			return lipgloss.JoinVertical(lipgloss.Left, title, selector, help)
+		}
+	case createView:
+		if a.taskForm != nil {
+			return lipgloss.Place(a.width, a.height,
+				lipgloss.Center, lipgloss.Center,
+				a.taskForm.View())
 		}
 	case listView:
 		listView := a.list.View()
@@ -398,6 +437,10 @@ type taskUpdatedMsg struct {
 
 type undoMsg struct {
 	actions []undoAction
+}
+
+type taskCreatedMsg struct {
+	err error
 }
 
 // Commands
@@ -466,6 +509,13 @@ func (a *App) processUndo(actions []undoAction) tea.Cmd {
 			}
 		}
 		return taskUpdatedMsg{err: nil}
+	}
+}
+
+func (a *App) createTask(t *task.Task) tea.Cmd {
+	return func() tea.Msg {
+		_, err := a.repo.Create(t)
+		return taskCreatedMsg{err: err}
 	}
 }
 
