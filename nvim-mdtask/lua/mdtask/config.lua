@@ -3,7 +3,7 @@ local M = {}
 -- Default configuration
 local defaults = {
   -- Path to mdtask binary
-  mdtask_path = 'mdtask',
+  mdtask_path = '/Users/tkan/src/github.com/tkancf/mdtask/mdtask',
   
   -- Default paths to search for tasks
   task_paths = {},  -- Empty means use current directory

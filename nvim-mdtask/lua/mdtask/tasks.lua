@@ -79,7 +79,9 @@ end
 
 -- Create new task
 function M.new()
+  print("DEBUG: Starting new task creation")
   ui.show_task_form(function(task_data)
+    print("DEBUG: Task form callback executed with data:", vim.inspect(task_data))
     local args = {'new', '--format', 'json'}
     
     -- Add title (required)
@@ -123,7 +125,9 @@ function M.new()
       end
     end
     
+    print("DEBUG: About to execute mdtask with args:", vim.inspect(args))
     utils.execute_mdtask(args, function(err, output)
+      print("DEBUG: mdtask execution completed. err:", err, "output:", output)
       if err then
         utils.notify('Failed to create task: ' .. err, vim.log.levels.ERROR)
         return
