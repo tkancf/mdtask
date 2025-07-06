@@ -6,7 +6,6 @@ import (
 
 	"github.com/tkancf/mdtask/internal/config"
 	"github.com/tkancf/mdtask/internal/errors"
-	"github.com/tkancf/mdtask/internal/repository"
 	"github.com/tkancf/mdtask/internal/task"
 )
 
@@ -225,7 +224,7 @@ func TestCreateTask(t *testing.T) {
 				parent := &task.Task{
 					ID:     tt.params.ParentID,
 					Title:  "Parent Task",
-					Status: "TODO",
+					Tags:   []string{"mdtask"},
 				}
 				parent.SetStatus(task.StatusTODO)
 				repo.tasks[parent.ID] = parent

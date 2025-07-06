@@ -11,14 +11,22 @@ import (
 	"github.com/tkancf/mdtask/internal/task"
 )
 
+// TaskRepository interface defines the methods needed by TaskService
+type TaskRepository interface {
+	FindByID(id string) (*task.Task, error)
+	Create(t *task.Task) (string, error)
+	Update(t *task.Task) error
+	FindAll() ([]*task.Task, error)
+}
+
 // TaskService handles business logic for task operations
 type TaskService struct {
-	repo   *repository.TaskRepository
+	repo   TaskRepository
 	config *config.Config
 }
 
 // NewTaskService creates a new task service
-func NewTaskService(repo *repository.TaskRepository, cfg *config.Config) *TaskService {
+func NewTaskService(repo TaskRepository, cfg *config.Config) *TaskService {
 	return &TaskService{
 		repo:   repo,
 		config: cfg,
