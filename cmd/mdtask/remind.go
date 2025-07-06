@@ -8,7 +8,6 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/tkancf/mdtask/internal/cli"
-	"github.com/tkancf/mdtask/internal/output"
 )
 
 var remindCmd = &cobra.Command{

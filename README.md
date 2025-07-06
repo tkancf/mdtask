@@ -54,6 +54,7 @@ updated: YYYY-MM-DD HH:MM
     - `mdtask new` - タスクの作成（対話的またはフラグ指定）
     - `mdtask edit [task-id]` - タスクの編集（エディタ起動）
     - `mdtask archive [task-id]` - タスクのアーカイブ
+    - `mdtask tui` - ターミナルUIの起動（インタラクティブなタスク管理）
 - mdtaskはWebブラウザインターフェイスを提供する
     - `mdtask web` - WebUIの起動（デフォルトポート: 7000、自動ポート切替機能付き）
     - ダッシュボード、タスク管理、検索機能を含む直感的なUI

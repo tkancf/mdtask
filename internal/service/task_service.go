@@ -7,7 +7,6 @@ import (
 
 	"github.com/tkancf/mdtask/internal/config"
 	"github.com/tkancf/mdtask/internal/errors"
-	"github.com/tkancf/mdtask/internal/repository"
 	"github.com/tkancf/mdtask/internal/task"
 )
 
