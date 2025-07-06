@@ -57,7 +57,6 @@ func runSearch(cmd *cobra.Command, args []string) error {
 	}
 
 	var tasks []*task.Task
-	var err error
 
 	// If we have tag filters, use tag search
 	if len(searchTags) > 0 || len(excludeTags) > 0 {
