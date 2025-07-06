@@ -972,26 +972,138 @@ function M.show_task_preview(task)
     end
   end
   
+  -- Make preview window larger (90% of screen)
+  local win_width = vim.api.nvim_get_option('columns')
+  local win_height = vim.api.nvim_get_option('lines')
+  local width = math.floor(win_width * 0.9)
+  local height = math.floor(win_height * 0.85)
+  
   local buf, win = utils.create_float_win({
-    width = math.min(80, math.floor(vim.o.columns * 0.8)),
-    height = math.min(#lines + 2, math.floor(vim.o.lines * 0.8)),
+    width = width,
+    height = height,
   })
   
+  -- Store task data for saving
+  vim.api.nvim_buf_set_var(buf, 'mdtask_preview_task', task)
+  
+  -- Add help text at the top
+  table.insert(lines, 1, '# Task Preview (:w to save, :q to close)')
+  table.insert(lines, 2, '')
+  
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-  vim.api.nvim_buf_set_option(buf, 'modifiable', false)
-  vim.api.nvim_buf_set_option(buf, 'buftype', 'nofile')
+  vim.api.nvim_buf_set_option(buf, 'modifiable', true)  -- Make editable
+  vim.api.nvim_buf_set_option(buf, 'buftype', '')
   vim.api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
   vim.api.nvim_buf_set_option(buf, 'filetype', 'markdown')
+  vim.api.nvim_buf_set_name(buf, 'mdtask-preview-' .. task.id)
+  
+  -- Save function
+  local function save_preview()
+    local content_lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+    local in_content = false
+    local content_parts = {}
+    local new_title = nil
+    local new_description = nil
+    local new_status = nil
+    
+    for i, line in ipairs(content_lines) do
+      -- Skip help line
+      if i == 1 and line:match('^# Task Preview') then
+        goto continue
+      end
+      
+      -- Extract title
+      if not new_title and line:match('^# (.+)') then
+        new_title = line:match('^# (.+)')
+      -- Extract metadata
+      elseif line:match('^%*%*Status:%*%* (.+)') then
+        new_status = line:match('^%*%*Status:%*%* (.+)')
+      elseif line:match('^%*%*Description:%*%* (.+)') then
+        new_description = line:match('^%*%*Description:%*%* (.+)')
+      -- Content starts after ---
+      elseif line == '---' then
+        in_content = true
+      elseif in_content then
+        table.insert(content_parts, line)
+      end
+      
+      ::continue::
+    end
+    
+    -- Remove trailing empty lines from content
+    while #content_parts > 0 and content_parts[#content_parts] == '' do
+      table.remove(content_parts)
+    end
+    
+    local content = table.concat(content_parts, '\n')
+    
+    -- Update task if anything changed
+    local args = {'edit', task.id}
+    local has_changes = false
+    
+    if new_title and new_title ~= task.title then
+      table.insert(args, '--title')
+      table.insert(args, new_title)
+      has_changes = true
+    end
+    
+    if new_description and new_description ~= (task.description or '') then
+      table.insert(args, '--description')
+      table.insert(args, new_description)
+      has_changes = true
+    end
+    
+    if new_status and new_status ~= task.status then
+      table.insert(args, '--status')
+      table.insert(args, new_status)
+      has_changes = true
+    end
+    
+    if content ~= (task.content or '') then
+      table.insert(args, '--content')
+      table.insert(args, content)
+      has_changes = true
+    end
+    
+    if has_changes then
+      utils.execute_mdtask(args, function(err, output)
+        if err then
+          utils.notify('Failed to save task: ' .. err, vim.log.levels.ERROR)
+        else
+          utils.notify('Task saved successfully')
+          vim.api.nvim_buf_set_option(buf, 'modified', false)
+          
+          -- Refresh task list if it's open
+          if M.task_list_buf and vim.api.nvim_buf_is_valid(M.task_list_buf) then
+            require('mdtask.tasks').list()
+          end
+        end
+      end)
+    else
+      utils.notify('No changes to save')
+    end
+  end
+  
+  -- Set up commands
+  vim.api.nvim_buf_create_user_command(buf, 'w', save_preview, {})
+  vim.api.nvim_buf_create_user_command(buf, 'wq', function()
+    save_preview()
+    vim.api.nvim_win_close(win, true)
+  end, {})
+  vim.api.nvim_buf_create_user_command(buf, 'q', function()
+    if vim.api.nvim_buf_get_option(buf, 'modified') then
+      utils.notify('No write since last change (add ! to override)', vim.log.levels.WARN)
+    else
+      vim.api.nvim_win_close(win, true)
+    end
+  end, {})
+  vim.api.nvim_buf_create_user_command(buf, 'q!', function()
+    vim.api.nvim_win_close(win, true)
+  end, { bang = true })
   
   -- Set up keymaps
   local opts = { buffer = buf, silent = true }
-  -- Add 'q' mapping for quick quit
-  vim.keymap.set('n', 'q', function()
-    vim.api.nvim_win_close(win, true)
-  end, opts)
-  vim.keymap.set('n', '<Esc>', function()
-    vim.api.nvim_win_close(win, true)
-  end, opts)
+  vim.keymap.set('n', '<C-s>', save_preview, opts)
 end
 
 -- Show task statistics
