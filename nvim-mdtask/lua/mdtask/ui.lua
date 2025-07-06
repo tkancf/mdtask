@@ -456,6 +456,49 @@ function M.show_task_list(tasks, title)
       desc = 'Close help window when main mdtask window closes'
     })
     
+    -- Add :q command to close the window
+    vim.api.nvim_buf_create_user_command(buf, 'q', function()
+      -- Close help window if it exists
+      if M.help_win and vim.api.nvim_win_is_valid(M.help_win) then
+        vim.api.nvim_win_close(M.help_win, true)
+        M.help_win = nil
+      end
+      -- Close main window
+      vim.api.nvim_win_close(win, true)
+    end, { desc = 'Close mdtask window' })
+    
+    -- Add :quit as alias for :q
+    vim.api.nvim_buf_create_user_command(buf, 'quit', function()
+      -- Close help window if it exists
+      if M.help_win and vim.api.nvim_win_is_valid(M.help_win) then
+        vim.api.nvim_win_close(M.help_win, true)
+        M.help_win = nil
+      end
+      -- Close main window
+      vim.api.nvim_win_close(win, true)
+    end, { desc = 'Close mdtask window' })
+    
+    -- Add :qa and :qall commands for consistency
+    vim.api.nvim_buf_create_user_command(buf, 'qa', function()
+      -- Close help window if it exists
+      if M.help_win and vim.api.nvim_win_is_valid(M.help_win) then
+        vim.api.nvim_win_close(M.help_win, true)
+        M.help_win = nil
+      end
+      -- Close main window
+      vim.api.nvim_win_close(win, true)
+    end, { desc = 'Close mdtask window' })
+    
+    vim.api.nvim_buf_create_user_command(buf, 'qall', function()
+      -- Close help window if it exists
+      if M.help_win and vim.api.nvim_win_is_valid(M.help_win) then
+        vim.api.nvim_win_close(M.help_win, true)
+        M.help_win = nil
+      end
+      -- Close main window
+      vim.api.nvim_win_close(win, true)
+    end, { desc = 'Close mdtask window' })
+    
     -- Set up keymaps
     local opts = { buffer = buf, silent = true }
     local actions = require('mdtask.actions')
