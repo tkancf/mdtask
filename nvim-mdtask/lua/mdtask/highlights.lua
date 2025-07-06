@@ -20,6 +20,12 @@ function M.setup()
   vim.api.nvim_set_hl(0, 'MdTaskDeadline', { fg = '#e0af68', bold = true, default = true })
   vim.api.nvim_set_hl(0, 'MdTaskOverdue', { fg = '#f7768e', bold = true, default = true })
   
+  -- Indicator highlights
+  vim.api.nvim_set_hl(0, 'MdTaskIndicator', { fg = '#7dcfff', bold = true, default = true })
+  vim.api.nvim_set_hl(0, 'MdTaskPriority', { fg = '#f7768e', bold = true, default = true })
+  vim.api.nvim_set_hl(0, 'MdTaskToday', { fg = '#e0af68', bold = true, default = true })
+  vim.api.nvim_set_hl(0, 'MdTaskSoon', { fg = '#ff9e64', bold = true, default = true })
+  
   -- UI elements
   vim.api.nvim_set_hl(0, 'MdTaskHeader', { fg = '#7aa2f7', bold = true, default = true })
   vim.api.nvim_set_hl(0, 'MdTaskSeparator', { fg = '#565f89', default = true })
@@ -119,6 +125,40 @@ function M.apply_task_id_virtual_text(buf, task_id_info)
       virt_text = {{' {' .. task_id .. '}', 'MdTaskId'}},
       virt_text_pos = 'eol',
     })
+  end
+end
+
+-- Apply virtual text for indicators
+function M.apply_indicator_virtual_text(buf, indicator_info)
+  -- Create namespace for virtual text
+  local ns_id = vim.api.nvim_create_namespace('mdtask_indicators')
+  
+  -- Clear existing virtual text
+  vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
+  
+  -- Apply virtual text for each indicator
+  for line_num, indicators in pairs(indicator_info) do
+    if #indicators > 0 then
+      local virt_text = {}
+      for _, indicator in ipairs(indicators) do
+        local highlight = 'MdTaskIndicator'
+        if indicator == '[!]' then
+          highlight = 'MdTaskPriority'
+        elseif indicator == '[OVERDUE]' then
+          highlight = 'MdTaskOverdue'
+        elseif indicator == '[TODAY]' then
+          highlight = 'MdTaskToday'
+        elseif indicator == '[SOON]' then
+          highlight = 'MdTaskSoon'
+        end
+        table.insert(virt_text, {indicator .. ' ', highlight})
+      end
+      
+      vim.api.nvim_buf_set_extmark(buf, ns_id, line_num - 1, 2, {
+        virt_text = virt_text,
+        virt_text_pos = 'inline',
+      })
+    end
   end
 end
 

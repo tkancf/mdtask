@@ -313,6 +313,7 @@ function M.show_task_list(tasks, title)
   -- Store info for virtual text
   local deadline_info = {}  -- { line_number = deadline_status }
   local task_id_info = {}  -- { line_number = task_id }
+  local indicator_info = {}  -- { line_number = indicators }
   M.line_to_task_id = {}  -- Reset line to task ID mapping
   
   -- Build a map of parent tasks and their children using filtered tasks
@@ -335,7 +336,7 @@ function M.show_task_list(tasks, title)
     indent_level = indent_level or 0
     
     -- Format task with indentation
-    local task_lines, deadline_status, task_id = utils.format_task(task, M.current_view_mode)
+    local task_lines, deadline_status, task_id, indicators = utils.format_task(task, M.current_view_mode)
     
     -- Apply additional indentation for subtasks
     if indent_level > 0 then
@@ -355,6 +356,11 @@ function M.show_task_list(tasks, title)
     if task_id and task_id ~= '' then
       task_id_info[main_line_num] = task_id
       M.line_to_task_id[main_line_num] = task_id
+    end
+    
+    -- Store indicators for virtual text
+    if indicators and #indicators > 0 then
+      indicator_info[main_line_num] = indicators
     end
     
     for _, line in ipairs(task_lines) do
@@ -405,6 +411,7 @@ function M.show_task_list(tasks, title)
   -- Apply virtual text
   highlights.apply_deadline_virtual_text(buf, deadline_info)
   highlights.apply_task_id_virtual_text(buf, task_id_info)
+  highlights.apply_indicator_virtual_text(buf, indicator_info)
   
   -- Only set these options for new buffers
   if not reuse_window then

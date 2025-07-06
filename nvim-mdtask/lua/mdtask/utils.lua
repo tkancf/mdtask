@@ -157,7 +157,12 @@ function M.format_task(task, view_mode)
     end
   end
   
-  -- Add visual indicators (text-based)
+  -- Format main line without indicators (they'll be virtual text)
+  local lines = {}
+  local main_line = string.format('- %s: %s', status, title)
+  table.insert(lines, main_line)
+  
+  -- Calculate indicators for virtual text
   local indicators = {}
   
   -- Priority indicator
@@ -190,20 +195,9 @@ function M.format_task(task, view_mode)
     end
   end
   
-  -- Build indicator string
-  local indicator_str = ''
-  if #indicators > 0 then
-    indicator_str = table.concat(indicators, '') .. ' '
-  end
-  
-  -- Format main line with indicators
-  local lines = {}
-  local main_line = string.format('- %s%s: %s', indicator_str, status, title)
-  table.insert(lines, main_line)
-  
   -- Compact mode: only show main line
   if view_mode == 'compact' then
-    return lines, deadline_status, id
+    return lines, deadline_status, id, indicators
   end
   
   -- Detailed mode: show all information
@@ -233,8 +227,8 @@ function M.format_task(task, view_mode)
     table.insert(lines, string.format('    - Parent: %s', parent_id_short))
   end
   
-  -- Return lines, deadline status, and task ID separately
-  return lines, deadline_status, id
+  -- Return lines, deadline status, task ID, and indicators separately
+  return lines, deadline_status, id, indicators
 end
 
 -- Get task ID from current buffer file path
