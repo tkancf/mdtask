@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/tkancf/mdtask/internal/config"
-	"github.com/tkancf/mdtask/internal/repository"
+	"github.com/tkancf/mdtask/internal/cli"
+	"github.com/tkancf/mdtask/internal/output"
 	"github.com/tkancf/mdtask/internal/task"
 )
 
@@ -40,13 +40,13 @@ func init() {
 	newCmd.Flags().StringVarP(&newStatus, "status", "s", "", "Initial status (TODO, WIP, WAIT, SCHE, DONE)")
 	newCmd.Flags().StringVar(&newDeadline, "deadline", "", "Deadline (YYYY-MM-DD)")
 	newCmd.Flags().StringVar(&newReminder, "reminder", "", "Reminder (YYYY-MM-DD HH:MM or YYYY-MM-DD)")
+	newCmd.Flags().StringVar(&newParent, "parent", "", "Parent task ID for creating subtask")
 }
 
 func runNew(cmd *cobra.Command, args []string) error {
-	// Load configuration
-	cfg, err := config.LoadFromDefaultLocation()
+	ctx, err := cli.LoadContext(cmd)
 	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
+		return err
 	}
 
 	reader := bufio.NewReader(os.Stdin)
@@ -61,8 +61,8 @@ func runNew(cmd *cobra.Command, args []string) error {
 	}
 	
 	// Apply title prefix from config
-	if cfg.Task.TitlePrefix != "" {
-		newTitle = cfg.Task.TitlePrefix + newTitle
+	if ctx.Config.Task.TitlePrefix != "" {
+		newTitle = ctx.Config.Task.TitlePrefix + newTitle
 	}
 	
 	// Validate title
@@ -72,8 +72,8 @@ func runNew(cmd *cobra.Command, args []string) error {
 
 	if newDescription == "" {
 		// Use description template if available
-		if cfg.Task.DescriptionTemplate != "" {
-			newDescription = cfg.Task.DescriptionTemplate
+		if ctx.Config.Task.DescriptionTemplate != "" {
+			newDescription = ctx.Config.Task.DescriptionTemplate
 		} else {
 			fmt.Print("Description: ")
 			desc, err := reader.ReadString('\n')
@@ -93,9 +93,9 @@ func runNew(cmd *cobra.Command, args []string) error {
 	if newContent != "" {
 		// Use content from flag
 		content = newContent
-	} else if cfg.Task.ContentTemplate != "" {
+	} else if ctx.Config.Task.ContentTemplate != "" {
 		// Use content template if available
-		content = cfg.Task.ContentTemplate
+		content = ctx.Config.Task.ContentTemplate
 		fmt.Println("\nUsing content template from configuration.")
 	} else {
 		fmt.Println("\nContent (press Ctrl+D to finish):")
@@ -112,7 +112,7 @@ func runNew(cmd *cobra.Command, args []string) error {
 	
 	// Merge default tags from config with provided tags
 	allTags := []string{"mdtask"}
-	allTags = append(allTags, cfg.Task.DefaultTags...)
+	allTags = append(allTags, ctx.Config.Task.DefaultTags...)
 	allTags = append(allTags, newTags...)
 	
 	t := &task.Task{
@@ -128,55 +128,40 @@ func runNew(cmd *cobra.Command, args []string) error {
 	// Use config default status if not specified
 	statusStr := newStatus
 	if statusStr == "" {
-		statusStr = cfg.Task.DefaultStatus
+		statusStr = ctx.Config.Task.DefaultStatus
 	}
 	if statusStr == "" {
 		statusStr = "TODO"
 	}
-	t.SetStatus(task.Status(statusStr))
+	statusToSet, err := cli.ValidateStatus(statusStr)
+	if err != nil {
+		return err
+	}
+	t.SetStatus(statusToSet)
 
-	if newDeadline != "" {
-		deadline, err := time.Parse("2006-01-02", newDeadline)
-		if err != nil {
-			return fmt.Errorf("invalid deadline format: %w", err)
-		}
-		t.SetDeadline(deadline)
+	if deadline, err := cli.ParseDeadline(newDeadline); err != nil {
+		return err
+	} else if deadline != nil {
+		t.SetDeadline(*deadline)
 	}
 
-	if newReminder != "" {
-		// Try parsing with time first
-		reminder, err := time.Parse("2006-01-02 15:04", newReminder)
-		if err != nil {
-			// Try parsing date only
-			reminder, err = time.Parse("2006-01-02", newReminder)
-			if err != nil {
-				return fmt.Errorf("invalid reminder format (use YYYY-MM-DD HH:MM or YYYY-MM-DD): %w", err)
-			}
-			// Set default time to 9:00 AM for date-only reminders
-			reminder = time.Date(reminder.Year(), reminder.Month(), reminder.Day(), 9, 0, 0, 0, reminder.Location())
-		}
-		t.SetReminder(reminder)
+	if reminder, err := cli.ParseReminder(newReminder); err != nil {
+		return err
+	} else if reminder != nil {
+		t.SetReminder(*reminder)
 	}
 
 	// Handle parent task relationship
 	if newParent != "" {
-		// Validate parent task ID format
-		if !strings.HasPrefix(newParent, "task/") {
-			// Try to add the prefix if it's missing
-			if _, err := time.Parse("20060102150405", newParent); err == nil {
-				newParent = "task/" + newParent
-			} else {
-				return fmt.Errorf("invalid parent task ID format: %s", newParent)
-			}
+		// Normalize parent task ID
+		normalizedParent, err := cli.NormalizeTaskID(newParent)
+		if err != nil {
+			return err
 		}
+		newParent = normalizedParent
 		
 		// Validate parent task exists
-		paths, _ := cmd.Flags().GetStringSlice("paths")
-		if len(paths) == 1 && paths[0] == "." && len(cfg.Paths) > 0 {
-			paths = cfg.Paths
-		}
-		tempRepo := repository.NewTaskRepository(paths)
-		parentTask, err := tempRepo.FindByID(newParent)
+		parentTask, err := ctx.Repo.FindByID(newParent)
 		if err != nil {
 			return fmt.Errorf("parent task not found: %s", newParent)
 		}
@@ -193,15 +178,14 @@ func runNew(cmd *cobra.Command, args []string) error {
 		fmt.Printf("Creating subtask of: %s\n", parentTask.Title)
 	}
 
-	paths, _ := cmd.Flags().GetStringSlice("paths")
-	if len(paths) == 1 && paths[0] == "." && len(cfg.Paths) > 0 {
-		paths = cfg.Paths
-	}
-	repo := repository.NewTaskRepository(paths)
-
-	filePath, err := repo.Create(t)
+	filePath, err := ctx.Repo.Create(t)
 	if err != nil {
 		return fmt.Errorf("failed to create task: %w", err)
+	}
+
+	if outputFormat == "json" {
+		printer := output.NewJSONPrinter(os.Stdout)
+		return printer.PrintTaskWithPath(t, filePath)
 	}
 
 	fmt.Printf("\nTask created successfully!\n")

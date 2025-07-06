@@ -7,7 +7,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/tkancf/mdtask/internal/repository"
+	"github.com/tkancf/mdtask/internal/cli"
+	"github.com/tkancf/mdtask/internal/output"
 )
 
 var remindCmd = &cobra.Command{
@@ -29,11 +30,13 @@ func init() {
 }
 
 func runRemind(cmd *cobra.Command, args []string) error {
-	paths, _ := cmd.Flags().GetStringSlice("paths")
-	repo := repository.NewTaskRepository(paths)
+	ctx, err := cli.LoadContext(cmd)
+	if err != nil {
+		return err
+	}
 
 	if remindCheck {
-		return checkReminders(repo)
+		return checkReminders(ctx)
 	}
 
 	if remindLoop {
@@ -41,7 +44,7 @@ func runRemind(cmd *cobra.Command, args []string) error {
 		fmt.Println("Press Ctrl+C to stop")
 		
 		// Run once immediately
-		if err := processReminders(repo); err != nil {
+		if err := processReminders(ctx); err != nil {
 			fmt.Printf("Error processing reminders: %v\n", err)
 		}
 		
@@ -50,20 +53,20 @@ func runRemind(cmd *cobra.Command, args []string) error {
 		defer ticker.Stop()
 
 		for range ticker.C {
-			if err := processReminders(repo); err != nil {
+			if err := processReminders(ctx); err != nil {
 				fmt.Printf("Error processing reminders: %v\n", err)
 			}
 		}
 	} else {
 		// Run once
-		return processReminders(repo)
+		return processReminders(ctx)
 	}
 
 	return nil
 }
 
-func checkReminders(repo *repository.TaskRepository) error {
-	tasks, err := repo.FindActive()
+func checkReminders(ctx *cli.Context) error {
+	tasks, err := ctx.Repo.FindActive()
 	if err != nil {
 		return fmt.Errorf("failed to load tasks: %w", err)
 	}
@@ -99,8 +102,8 @@ func checkReminders(repo *repository.TaskRepository) error {
 	return nil
 }
 
-func processReminders(repo *repository.TaskRepository) error {
-	tasks, err := repo.FindActive()
+func processReminders(ctx *cli.Context) error {
+	tasks, err := ctx.Repo.FindActive()
 	if err != nil {
 		return fmt.Errorf("failed to load tasks: %w", err)
 	}

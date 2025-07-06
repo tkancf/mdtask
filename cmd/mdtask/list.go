@@ -1,7 +1,6 @@
 package mdtask
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -9,8 +8,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/tkancf/mdtask/internal/config"
-	"github.com/tkancf/mdtask/internal/repository"
+	"github.com/tkancf/mdtask/internal/cli"
+	"github.com/tkancf/mdtask/internal/output"
 	"github.com/tkancf/mdtask/internal/task"
 )
 
@@ -37,17 +36,10 @@ func init() {
 }
 
 func runList(cmd *cobra.Command, args []string) error {
-	// Load configuration
-	cfg, err := config.LoadFromDefaultLocation()
+	ctx, err := cli.LoadContext(cmd)
 	if err != nil {
-		return fmt.Errorf("failed to load config: %w", err)
+		return err
 	}
-
-	paths, _ := cmd.Flags().GetStringSlice("paths")
-	if len(paths) == 1 && paths[0] == "." && len(cfg.Paths) > 0 {
-		paths = cfg.Paths
-	}
-	repo := repository.NewTaskRepository(paths)
 
 	var tasks []*task.Task
 
@@ -64,7 +56,7 @@ func runList(cmd *cobra.Command, args []string) error {
 		}
 		
 		// Get all tasks and filter by parent
-		allTasks, err := repo.FindAll()
+		allTasks, err := ctx.Repo.FindAll()
 		if err != nil {
 			return err
 		}
@@ -86,9 +78,9 @@ func runList(cmd *cobra.Command, args []string) error {
 		}
 	} else if listStatus != "" {
 		status := task.Status(listStatus)
-		tasks, err = repo.FindByStatus(status)
+		tasks, err = ctx.Repo.FindByStatus(status)
 	} else if listArchived {
-		allTasks, err := repo.FindAll()
+		allTasks, err := ctx.Repo.FindAll()
 		if err != nil {
 			return err
 		}
@@ -98,26 +90,26 @@ func runList(cmd *cobra.Command, args []string) error {
 			}
 		}
 	} else if listAll {
-		tasks, err = repo.FindAll()
+		tasks, err = ctx.Repo.FindAll()
 	} else {
-		tasks, err = repo.FindActive()
+		tasks, err = ctx.Repo.FindActive()
 	}
 
 	if err != nil {
 		return fmt.Errorf("failed to list tasks: %w", err)
 	}
 
-	if len(tasks) == 0 {
-		if outputFormat == "json" {
-			fmt.Println("[]")
-		} else {
-			fmt.Println("No tasks found.")
-		}
-		return nil
-	}
-
 	if outputFormat == "json" {
-		return printTasksJSON(tasks)
+		printer := output.NewJSONPrinter(os.Stdout)
+		if len(tasks) == 0 {
+			return printer.PrintEmpty()
+		}
+		return printer.PrintTasks(tasks)
+	}
+	
+	if len(tasks) == 0 {
+		fmt.Println("No tasks found.")
+		return nil
 	}
 	
 	printTasks(tasks)
@@ -173,43 +165,3 @@ func truncate(s string, maxLen int) string {
 	return s[:maxLen-3] + "..."
 }
 
-// TaskJSON represents a task in JSON format
-type TaskJSON struct {
-	ID          string    `json:"id"`
-	Title       string    `json:"title"`
-	Description string    `json:"description"`
-	Status      string    `json:"status"`
-	Tags        []string  `json:"tags"`
-	Created     time.Time `json:"created"`
-	Updated     time.Time `json:"updated"`
-	Deadline    *time.Time `json:"deadline,omitempty"`
-	Reminder    *time.Time `json:"reminder,omitempty"`
-	IsArchived  bool      `json:"is_archived"`
-	Content     string    `json:"content,omitempty"`
-	ParentID    string    `json:"parent_id,omitempty"`
-}
-
-func printTasksJSON(tasks []*task.Task) error {
-	jsonTasks := make([]TaskJSON, len(tasks))
-	
-	for i, t := range tasks {
-		jsonTasks[i] = TaskJSON{
-			ID:          t.ID,
-			Title:       t.Title,
-			Description: t.Description,
-			Status:      string(t.GetStatus()),
-			Tags:        t.Tags,
-			Created:     t.Created,
-			Updated:     t.Updated,
-			Deadline:    t.GetDeadline(),
-			Reminder:    t.GetReminder(),
-			IsArchived:  t.IsArchived(),
-			Content:     t.Content,
-			ParentID:    t.GetParentID(),
-		}
-	}
-	
-	encoder := json.NewEncoder(os.Stdout)
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(jsonTasks)
-}

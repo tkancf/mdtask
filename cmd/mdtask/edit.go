@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/tkancf/mdtask/internal/repository"
+	"github.com/tkancf/mdtask/internal/cli"
+	"github.com/tkancf/mdtask/internal/errors"
+	"github.com/tkancf/mdtask/internal/output"
 	"github.com/tkancf/mdtask/internal/task"
 )
 
@@ -43,10 +44,15 @@ func init() {
 }
 
 func runEdit(cmd *cobra.Command, args []string) error {
-	taskID := args[0]
+	ctx, err := cli.LoadContext(cmd)
+	if err != nil {
+		return err
+	}
 	
-	paths, _ := cmd.Flags().GetStringSlice("paths")
-	repo := repository.NewTaskRepository(paths)
+	taskID, err := cli.NormalizeTaskID(args[0])
+	if err != nil {
+		return err
+	}
 	
 	// Check if any flags are provided for programmatic editing
 	hasFlags := editTitle != "" || editDescription != "" || editStatus != "" || 
@@ -54,9 +60,9 @@ func runEdit(cmd *cobra.Command, args []string) error {
 	
 	if hasFlags {
 		// Programmatic editing mode
-		t, err := repo.FindByID(taskID)
+		t, err := ctx.Repo.FindByID(taskID)
 		if err != nil {
-			return fmt.Errorf("task not found: %s", taskID)
+			return err
 		}
 		
 		// Update fields based on flags
@@ -75,20 +81,11 @@ func runEdit(cmd *cobra.Command, args []string) error {
 		}
 		
 		if editStatus != "" {
-			switch strings.ToUpper(editStatus) {
-			case "TODO":
-				t.SetStatus(task.StatusTODO)
-			case "WIP":
-				t.SetStatus(task.StatusWIP)
-			case "WAIT":
-				t.SetStatus(task.StatusWAIT)
-			case "SCHE":
-				t.SetStatus(task.StatusSCHE)
-			case "DONE":
-				t.SetStatus(task.StatusDONE)
-			default:
-				return fmt.Errorf("invalid status: %s", editStatus)
+			status, err := cli.ValidateStatus(strings.ToUpper(editStatus))
+			if err != nil {
+				return err
 			}
+			t.SetStatus(status)
 		}
 		
 		if editTags != "" {
@@ -126,69 +123,34 @@ func runEdit(cmd *cobra.Command, args []string) error {
 				t.Tags = newTags
 			} else {
 				// Parse and set deadline
-				deadline, err := time.Parse("2006-01-02", editDeadline)
+				deadline, err := cli.ParseDeadline(editDeadline)
 				if err != nil {
-					return fmt.Errorf("invalid deadline format (use YYYY-MM-DD): %w", err)
+					return err
 				}
-				t.SetDeadline(deadline)
+				if deadline != nil {
+					t.SetDeadline(*deadline)
+				}
 			}
 		}
 		
 		// Update the task
-		t.Updated = time.Now()
-		if err := repo.Update(t); err != nil {
-			return fmt.Errorf("failed to update task: %w", err)
+		if err := ctx.Repo.Update(t); err != nil {
+			return err
+		}
+		
+		if outputFormat == "json" {
+			printer := output.NewJSONPrinter(os.Stdout)
+			return printer.PrintTask(t)
 		}
 		
 		fmt.Printf("Task %s updated successfully.\n", taskID)
 		return nil
 	}
 	
-	// Original editor mode
-	var taskFilePath string
-	for _, root := range paths {
-		err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				return err
-			}
-			
-			if info.IsDir() || filepath.Ext(path) != ".md" {
-				return nil
-			}
-
-			t, err := repo.FindByID(taskID)
-			if err == nil && t != nil {
-				taskFilePath = path
-				return filepath.SkipAll
-			}
-			
-			return nil
-		})
-		
-		if taskFilePath != "" {
-			break
-		}
-		
-		if err != nil && err != filepath.SkipAll {
-			return fmt.Errorf("failed to walk directory: %w", err)
-		}
-	}
-
-	if taskFilePath == "" {
-		// Try to find file by timestamp (task/YYYYMMDDHHMMSS -> YYYYMMDDHHMMSS.md)
-		timestamp := strings.TrimPrefix(taskID, "task/")
-		fileName := fmt.Sprintf("%s.md", timestamp)
-		for _, root := range paths {
-			testPath := filepath.Join(root, fileName)
-			if _, err := os.Stat(testPath); err == nil {
-				taskFilePath = testPath
-				break
-			}
-		}
-	}
-
-	if taskFilePath == "" {
-		return fmt.Errorf("task not found: %s", taskID)
+	// Editor mode - find task file path
+	_, taskFilePath, err := ctx.Repo.FindByIDWithPath(taskID)
+	if err != nil {
+		return err
 	}
 
 	editor := os.Getenv("EDITOR")
@@ -196,15 +158,25 @@ func runEdit(cmd *cobra.Command, args []string) error {
 		editor = "vi"
 	}
 
-	editCmd := exec.Command(editor, taskFilePath)
-	editCmd.Stdin = os.Stdin
-	editCmd.Stdout = os.Stdout
-	editCmd.Stderr = os.Stderr
+	editorCmd := exec.Command(editor, taskFilePath)
+	editorCmd.Stdin = os.Stdin
+	editorCmd.Stdout = os.Stdout
+	editorCmd.Stderr = os.Stderr
 
-	if err := editCmd.Run(); err != nil {
-		return fmt.Errorf("failed to open editor: %w", err)
+	if err := editorCmd.Run(); err != nil {
+		return errors.InternalError("failed to open editor", err)
 	}
 
+	if outputFormat == "json" {
+		// Reload task to get updated version
+		t, err := ctx.Repo.FindByID(taskID)
+		if err != nil {
+			return err
+		}
+		printer := output.NewJSONPrinter(os.Stdout)
+		return printer.PrintTask(t)
+	}
+	
 	fmt.Printf("Task %s edited successfully.\n", taskID)
 	return nil
 }

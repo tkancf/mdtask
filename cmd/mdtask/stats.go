@@ -1,12 +1,14 @@
 package mdtask
 
 import (
+	"encoding/json"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/tkancf/mdtask/internal/repository"
+	"github.com/tkancf/mdtask/internal/cli"
 	"github.com/tkancf/mdtask/internal/task"
 )
 
@@ -33,25 +35,38 @@ func init() {
 }
 
 type TaskStats struct {
-	Total       int
-	TODO        int
-	WIP         int
-	WAIT        int
-	DONE        int
-	CreatedToday int
-	UpdatedToday int
-	CompletedToday int
-	OverdueTasks int
-	UpcomingDeadlines int
+	Total       int `json:"total"`
+	ByStatus    struct {
+		TODO int `json:"todo"`
+		WIP  int `json:"wip"`
+		WAIT int `json:"wait"`
+		SCHE int `json:"sche"`
+		DONE int `json:"done"`
+	} `json:"by_status"`
+	Activity struct {
+		Created   int `json:"created"`
+		Updated   int `json:"updated"`
+		Completed int `json:"completed"`
+	} `json:"activity"`
+	Deadlines struct {
+		Overdue  int `json:"overdue"`
+		Upcoming int `json:"upcoming"`
+	} `json:"deadlines"`
+	DateRange struct {
+		Start string `json:"start"`
+		End   string `json:"end"`
+	} `json:"date_range"`
 }
 
 func runStats(cmd *cobra.Command, args []string) error {
-	paths, _ := cmd.Flags().GetStringSlice("paths")
-	repo := repository.NewTaskRepository(paths)
-
-	tasks, err := repo.FindAll()
+	ctx, err := cli.LoadContext(cmd)
 	if err != nil {
-		return fmt.Errorf("failed to load tasks: %w", err)
+		return err
+	}
+
+	tasks, err := ctx.Repo.FindAll()
+	if err != nil {
+		return err
 	}
 
 	// Determine the date range
@@ -85,6 +100,12 @@ func runStats(cmd *cobra.Command, args []string) error {
 
 	stats := calculateStats(tasks, startDate, endDate, now)
 	
+	if outputFormat == "json" {
+		encoder := json.NewEncoder(os.Stdout)
+		encoder.SetIndent("", "  ")
+		return encoder.Encode(stats)
+	}
+	
 	if statsSimple {
 		displaySimpleStats(stats, startDate, endDate)
 	} else {
@@ -96,6 +117,8 @@ func runStats(cmd *cobra.Command, args []string) error {
 
 func calculateStats(tasks []*task.Task, startDate, endDate, now time.Time) TaskStats {
 	stats := TaskStats{}
+	stats.DateRange.Start = startDate.Format("2006-01-02")
+	stats.DateRange.End = endDate.AddDate(0, 0, -1).Format("2006-01-02")
 	
 	for _, t := range tasks {
 		if t.IsArchived() {
@@ -107,36 +130,38 @@ func calculateStats(tasks []*task.Task, startDate, endDate, now time.Time) TaskS
 		// Count by status
 		switch t.GetStatus() {
 		case task.StatusTODO:
-			stats.TODO++
+			stats.ByStatus.TODO++
 		case task.StatusWIP:
-			stats.WIP++
+			stats.ByStatus.WIP++
 		case task.StatusWAIT:
-			stats.WAIT++
+			stats.ByStatus.WAIT++
+		case task.StatusSCHE:
+			stats.ByStatus.SCHE++
 		case task.StatusDONE:
-			stats.DONE++
+			stats.ByStatus.DONE++
 		}
 		
 		// Check if created in date range
 		if t.Created.After(startDate) && t.Created.Before(endDate) {
-			stats.CreatedToday++
+			stats.Activity.Created++
 		}
 		
 		// Check if updated in date range
 		if t.Updated.After(startDate) && t.Updated.Before(endDate) {
-			stats.UpdatedToday++
+			stats.Activity.Updated++
 		}
 		
 		// Check if completed in date range (assuming DONE tasks were completed when last updated)
 		if t.GetStatus() == task.StatusDONE && t.Updated.After(startDate) && t.Updated.Before(endDate) {
-			stats.CompletedToday++
+			stats.Activity.Completed++
 		}
 		
 		// Check deadlines
 		if deadline := t.GetDeadline(); deadline != nil {
 			if deadline.Before(now) {
-				stats.OverdueTasks++
+				stats.Deadlines.Overdue++
 			} else if deadline.Sub(now) < 7*24*time.Hour {
-				stats.UpcomingDeadlines++
+				stats.Deadlines.Upcoming++
 			}
 		}
 	}
@@ -149,17 +174,18 @@ func displaySimpleStats(stats TaskStats, startDate, endDate time.Time) {
 	fmt.Printf("Task Statistics for %s\n", dateRange)
 	fmt.Println(strings.Repeat("-", 40))
 	fmt.Printf("Total Active Tasks: %d\n", stats.Total)
-	fmt.Printf("  TODO: %d\n", stats.TODO)
-	fmt.Printf("  WIP:  %d\n", stats.WIP)
-	fmt.Printf("  WAIT: %d\n", stats.WAIT)
-	fmt.Printf("  DONE: %d\n", stats.DONE)
+	fmt.Printf("  TODO: %d\n", stats.ByStatus.TODO)
+	fmt.Printf("  WIP:  %d\n", stats.ByStatus.WIP)
+	fmt.Printf("  WAIT: %d\n", stats.ByStatus.WAIT)
+	fmt.Printf("  SCHE: %d\n", stats.ByStatus.SCHE)
+	fmt.Printf("  DONE: %d\n", stats.ByStatus.DONE)
 	fmt.Println()
-	fmt.Printf("Created:   %d\n", stats.CreatedToday)
-	fmt.Printf("Updated:   %d\n", stats.UpdatedToday)
-	fmt.Printf("Completed: %d\n", stats.CompletedToday)
+	fmt.Printf("Created:   %d\n", stats.Activity.Created)
+	fmt.Printf("Updated:   %d\n", stats.Activity.Updated)
+	fmt.Printf("Completed: %d\n", stats.Activity.Completed)
 	fmt.Println()
-	fmt.Printf("Overdue Tasks:      %d\n", stats.OverdueTasks)
-	fmt.Printf("Upcoming Deadlines: %d\n", stats.UpcomingDeadlines)
+	fmt.Printf("Overdue Tasks:      %d\n", stats.Deadlines.Overdue)
+	fmt.Printf("Upcoming Deadlines: %d\n", stats.Deadlines.Upcoming)
 }
 
 func displayDetailedStats(stats TaskStats, startDate, endDate time.Time, tasks []*task.Task) {
@@ -173,10 +199,10 @@ func displayDetailedStats(stats TaskStats, startDate, endDate time.Time, tasks [
 	fmt.Println("\n📈 Progress Summary")
 	fmt.Println(strings.Repeat("─", 40))
 	
-	if stats.CreatedToday > 0 || stats.CompletedToday > 0 {
-		fmt.Printf("✨ Created:   %d new task(s)\n", stats.CreatedToday)
-		fmt.Printf("✅ Completed: %d task(s)\n", stats.CompletedToday)
-		fmt.Printf("📝 Updated:   %d task(s)\n", stats.UpdatedToday)
+	if stats.Activity.Created > 0 || stats.Activity.Completed > 0 {
+		fmt.Printf("✨ Created:   %d new task(s)\n", stats.Activity.Created)
+		fmt.Printf("✅ Completed: %d task(s)\n", stats.Activity.Completed)
+		fmt.Printf("📝 Updated:   %d task(s)\n", stats.Activity.Updated)
 	} else {
 		fmt.Println("No activity in this period")
 	}
@@ -186,30 +212,31 @@ func displayDetailedStats(stats TaskStats, startDate, endDate time.Time, tasks [
 	fmt.Println(strings.Repeat("─", 40))
 	
 	if stats.Total > 0 {
-		displayStatusBar("TODO", stats.TODO, stats.Total, "🔵")
-		displayStatusBar("WIP ", stats.WIP, stats.Total, "🟡")
-		displayStatusBar("WAIT", stats.WAIT, stats.Total, "⚪")
-		displayStatusBar("DONE", stats.DONE, stats.Total, "🟢")
+		displayStatusBar("TODO", stats.ByStatus.TODO, stats.Total, "🔵")
+		displayStatusBar("WIP ", stats.ByStatus.WIP, stats.Total, "🟡")
+		displayStatusBar("WAIT", stats.ByStatus.WAIT, stats.Total, "⚪")
+		displayStatusBar("SCHE", stats.ByStatus.SCHE, stats.Total, "🟣")
+		displayStatusBar("DONE", stats.ByStatus.DONE, stats.Total, "🟢")
 		
 		fmt.Printf("\nTotal Active Tasks: %d\n", stats.Total)
 		
 		// Completion rate for the period
-		if stats.CreatedToday > 0 {
-			completionRate := float64(stats.CompletedToday) / float64(stats.CreatedToday) * 100
+		if stats.Activity.Created > 0 {
+			completionRate := float64(stats.Activity.Completed) / float64(stats.Activity.Created) * 100
 			fmt.Printf("\n🎯 Daily Completion Rate: %.1f%% (%d/%d)\n", 
-				completionRate, stats.CompletedToday, stats.CreatedToday)
+				completionRate, stats.Activity.Completed, stats.Activity.Created)
 		}
 	} else {
 		fmt.Println("No active tasks")
 	}
 	
 	// Alerts
-	if stats.OverdueTasks > 0 || stats.UpcomingDeadlines > 0 {
+	if stats.Deadlines.Overdue > 0 || stats.Deadlines.Upcoming > 0 {
 		fmt.Println("\n⚠️  Alerts")
 		fmt.Println(strings.Repeat("─", 40))
 		
-		if stats.OverdueTasks > 0 {
-			fmt.Printf("🚨 Overdue Tasks: %d\n", stats.OverdueTasks)
+		if stats.Deadlines.Overdue > 0 {
+			fmt.Printf("🚨 Overdue Tasks: %d\n", stats.Deadlines.Overdue)
 			// List overdue tasks
 			for _, t := range tasks {
 				if !t.IsArchived() && t.GetDeadline() != nil && t.GetDeadline().Before(time.Now()) {
@@ -218,13 +245,13 @@ func displayDetailedStats(stats TaskStats, startDate, endDate time.Time, tasks [
 			}
 		}
 		
-		if stats.UpcomingDeadlines > 0 {
-			fmt.Printf("\n📅 Upcoming Deadlines (next 7 days): %d\n", stats.UpcomingDeadlines)
+		if stats.Deadlines.Upcoming > 0 {
+			fmt.Printf("\n📅 Upcoming Deadlines (next 7 days): %d\n", stats.Deadlines.Upcoming)
 		}
 	}
 	
 	// Tasks in progress
-	if stats.WIP > 0 {
+	if stats.ByStatus.WIP > 0 {
 		fmt.Println("\n🚧 Tasks in Progress")
 		fmt.Println(strings.Repeat("─", 40))
 		for _, t := range tasks {
