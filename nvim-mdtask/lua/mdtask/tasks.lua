@@ -131,18 +131,37 @@ function M.new()
       
       -- Parse JSON response to get file path
       local ok, task_response = pcall(vim.json.decode, output)
-      if ok and task_response and task_response.file_path then
+      if ok and task_response then
         utils.notify('Task created successfully')
         
-        -- Open the created file in a new tab for editing
-        vim.cmd('tabnew ' .. vim.fn.fnameescape(task_response.file_path))
+        -- Debug: log the response
+        print("Task creation response:", vim.inspect(task_response))
+        
+        if task_response.file_path then
+          local file_path = task_response.file_path
+          
+          -- Check if file path is relative and make it absolute
+          if not vim.startswith(file_path, '/') then
+            file_path = vim.fn.getcwd() .. '/' .. file_path
+          end
+          
+          -- Debug: log the file path being opened
+          print("Opening file:", file_path)
+          print("File exists:", vim.fn.filereadable(file_path))
+          
+          -- Open the created file in a new tab for editing
+          vim.cmd('tabnew ' .. vim.fn.fnameescape(file_path))
+        else
+          utils.notify('No file_path in response', vim.log.levels.WARN)
+        end
         
         -- Refresh task list if it's open
         if ui.task_list_buf and vim.api.nvim_buf_is_valid(ui.task_list_buf) then
           M.list()
         end
       else
-        utils.notify('Task created but could not open file for editing', vim.log.levels.WARN)
+        utils.notify('Task created but could not parse response: ' .. (output or 'no output'), vim.log.levels.WARN)
+        print("Raw output:", output)
         -- Refresh task list if it's open
         if ui.task_list_buf and vim.api.nvim_buf_is_valid(ui.task_list_buf) then
           M.list()
