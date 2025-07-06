@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
@@ -27,6 +28,13 @@ const (
 	statusSelectView
 )
 
+type undoAction struct {
+	taskID     string
+	oldStatus  task.Status
+	newStatus  task.Status
+	timestamp  time.Time
+}
+
 type App struct {
 	repo           repository.Repository
 	list           list.Model
@@ -35,6 +43,7 @@ type App struct {
 	statusSelector *components.StatusSelector
 	selectedTask   *task.Task
 	selectedTasks  map[string]*task.Task // For multi-select
+	undoHistory    []undoAction          // History for undo
 	viewState      viewState
 	width          int
 	height         int
@@ -136,6 +145,10 @@ func NewApp(repo repository.Repository) *App {
 				key.WithKeys("s"),
 				key.WithHelp("s", "change status"),
 			),
+			key.NewBinding(
+				key.WithKeys("u"),
+				key.WithHelp("u", "undo"),
+			),
 		}
 	}
 
@@ -143,6 +156,7 @@ func NewApp(repo repository.Repository) *App {
 		repo:          repo,
 		list:          l,
 		selectedTasks: make(map[string]*task.Task),
+		undoHistory:   make([]undoAction, 0),
 	}
 }
 
@@ -232,6 +246,11 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					}
 				}
 				a.list.SetItems(items)
+			case "u":
+				// Undo last action
+				if len(a.undoHistory) > 0 {
+					return a, a.undoLastAction()
+				}
 			}
 		}
 
@@ -251,11 +270,26 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case components.StatusSelectedMsg:
 		if len(a.selectedTasks) > 0 {
-			// Bulk status update
+			// Bulk status update - record old statuses for undo
+			for _, t := range a.selectedTasks {
+				a.undoHistory = append(a.undoHistory, undoAction{
+					taskID:    t.ID,
+					oldStatus: t.GetStatus(),
+					newStatus: msg.Status,
+					timestamp: time.Now(),
+				})
+			}
 			a.viewState = listView
 			return a, a.updateTasks(a.selectedTasks, msg.Status)
 		} else if a.selectedTask != nil {
-			// Single task update
+			// Single task update - record for undo
+			oldStatus := a.selectedTask.GetStatus()
+			a.undoHistory = append(a.undoHistory, undoAction{
+				taskID:    a.selectedTask.ID,
+				oldStatus: oldStatus,
+				newStatus: msg.Status,
+				timestamp: time.Now(),
+			})
 			a.selectedTask.SetStatus(msg.Status)
 			a.viewState = listView
 			return a, a.updateTask(a.selectedTask)
@@ -276,6 +310,9 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.selectedTasks = make(map[string]*task.Task)
 		// Reload tasks to reflect changes
 		return a, a.loadTasks
+
+	case undoMsg:
+		return a, a.processUndo(msg.actions)
 
 	case error:
 		// TODO: Better error handling
@@ -321,13 +358,28 @@ func (a *App) View() string {
 		}
 	case listView:
 		listView := a.list.View()
+		var statusInfo string
+		
+		// Show selected tasks count
 		if len(a.selectedTasks) > 0 {
-			selectedInfo := lipgloss.NewStyle().
+			statusInfo = fmt.Sprintf("%d tasks selected", len(a.selectedTasks))
+		}
+		
+		// Show undo history count
+		if len(a.undoHistory) > 0 {
+			if statusInfo != "" {
+				statusInfo += " | "
+			}
+			statusInfo += fmt.Sprintf("Undo available (%d)", len(a.undoHistory))
+		}
+		
+		if statusInfo != "" {
+			statusLine := lipgloss.NewStyle().
 				Foreground(lipgloss.Color("99")).
 				Bold(true).
 				Padding(0, 2).
-				Render(fmt.Sprintf("%d tasks selected", len(a.selectedTasks)))
-			return lipgloss.JoinVertical(lipgloss.Left, listView, selectedInfo)
+				Render(statusInfo)
+			return lipgloss.JoinVertical(lipgloss.Left, listView, statusLine)
 		}
 		return listView
 	}
@@ -342,6 +394,10 @@ type tasksLoadedMsg struct {
 
 type taskUpdatedMsg struct {
 	err error
+}
+
+type undoMsg struct {
+	actions []undoAction
 }
 
 // Commands
@@ -364,6 +420,47 @@ func (a *App) updateTasks(tasks map[string]*task.Task, status task.Status) tea.C
 	return func() tea.Msg {
 		for _, t := range tasks {
 			t.SetStatus(status)
+			if err := a.repo.Update(t); err != nil {
+				return taskUpdatedMsg{err: err}
+			}
+		}
+		return taskUpdatedMsg{err: nil}
+	}
+}
+
+func (a *App) undoLastAction() tea.Cmd {
+	return func() tea.Msg {
+		if len(a.undoHistory) == 0 {
+			return nil
+		}
+
+		// Get the timestamp of the last action
+		lastTimestamp := a.undoHistory[len(a.undoHistory)-1].timestamp
+		
+		// Collect all actions with the same timestamp (for bulk operations)
+		var actionsToUndo []undoAction
+		i := len(a.undoHistory) - 1
+		for i >= 0 && a.undoHistory[i].timestamp.Equal(lastTimestamp) {
+			actionsToUndo = append(actionsToUndo, a.undoHistory[i])
+			i--
+		}
+		
+		// Remove these actions from history
+		a.undoHistory = a.undoHistory[:i+1]
+		
+		return undoMsg{actions: actionsToUndo}
+	}
+}
+
+func (a *App) processUndo(actions []undoAction) tea.Cmd {
+	return func() tea.Msg {
+		for _, action := range actions {
+			// Find the task and revert its status
+			t, err := a.repo.FindByID(action.taskID)
+			if err != nil {
+				continue
+			}
+			t.SetStatus(action.oldStatus)
 			if err := a.repo.Update(t); err != nil {
 				return taskUpdatedMsg{err: err}
 			}

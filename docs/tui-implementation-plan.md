@@ -251,6 +251,13 @@ internal/
    - Bulk status changes for selected tasks
    - Visual indicator showing number of selected tasks
 
+6. **Undo Functionality** ✓
+   - Undo last status change with 'u' key
+   - Tracks history of all status changes
+   - Supports undoing bulk operations
+   - Shows undo availability in status line
+   - Groups related changes by timestamp
+
 ### Remaining Features
 
 1. **Task Creation**
@@ -281,6 +288,7 @@ internal/
 - a: Select all tasks
 - A: Clear all selections
 - s: Change status (single task or bulk for selected tasks)
+- u: Undo last status change
 - /: Search tasks
 - q: Quit
 - ?: Show help
