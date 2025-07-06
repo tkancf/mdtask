@@ -265,11 +265,13 @@ internal/
    - Ctrl+S to save, Esc to cancel
    - Auto-generates task ID and timestamps
 
-### Remaining Features
+8. **Task Editing** ✓
+   - External editor integration with 'e' key
+   - Configurable editor via config file or $EDITOR
+   - Automatic reload after editing
+   - Supports any text editor (vim, emacs, vscode, etc.)
 
-2. **Task Editing**
-   - External editor integration
-   - Edit task content and metadata
+### Remaining Features
 
 3. **Advanced Features**
    - Tag management
@@ -287,6 +289,7 @@ internal/
 - j/k or ↑/↓: Navigate list
 - Enter: View task details
 - n: Create new task
+- e: Edit task in external editor
 - v: Select/deselect task for multi-select
 - a: Select all tasks
 - A: Clear all selections

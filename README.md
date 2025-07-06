@@ -71,6 +71,8 @@ updated: YYYY-MM-DD HH:MM
         - `web.open_browser` - WebUI起動時のブラウザ自動起動設定
         - `mcp.enabled` - MCPサーバーの有効/無効
         - `mcp.allowed_paths` - MCPサーバーがアクセス可能な追加パス
+        - `editor.command` - タスク編集用エディタコマンド（未設定時は$EDITORを使用）
+        - `editor.args` - エディタに渡す追加引数
 
 ## インストール
 

@@ -3,12 +3,14 @@ package tui
 import (
 	"fmt"
 	"io"
+	"os/exec"
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/tkancf/mdtask/internal/config"
 	"github.com/tkancf/mdtask/internal/repository"
 	"github.com/tkancf/mdtask/internal/task"
 	"github.com/tkancf/mdtask/internal/tui/components"
@@ -38,6 +40,7 @@ type undoAction struct {
 
 type App struct {
 	repo           repository.Repository
+	config         *config.Config
 	list           list.Model
 	tasks          []*task.Task
 	detail         *views.DetailView
@@ -117,7 +120,7 @@ func (d itemDelegate) Render(w io.Writer, m list.Model, index int, listItem list
 	fmt.Fprint(w, fn(str))
 }
 
-func NewApp(repo repository.Repository) *App {
+func NewApp(repo repository.Repository, cfg *config.Config) *App {
 	// Create list with custom delegate
 	items := []list.Item{}
 	delegate := itemDelegate{}
@@ -144,6 +147,10 @@ func NewApp(repo repository.Repository) *App {
 				key.WithHelp("n", "new task"),
 			),
 			key.NewBinding(
+				key.WithKeys("e"),
+				key.WithHelp("e", "edit task"),
+			),
+			key.NewBinding(
 				key.WithKeys("v"),
 				key.WithHelp("v", "select/deselect"),
 			),
@@ -160,6 +167,7 @@ func NewApp(repo repository.Repository) *App {
 
 	return &App{
 		repo:          repo,
+		config:        cfg,
 		list:          l,
 		selectedTasks: make(map[string]*task.Task),
 		undoHistory:   make([]undoAction, 0),
@@ -262,6 +270,30 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				a.taskForm = components.NewTaskForm()
 				a.viewState = createView
 				return a, a.taskForm.Init()
+			case "e":
+				// Edit task
+				if i, ok := a.list.SelectedItem().(taskItem); ok {
+					a.selectedTask = i.task
+					// Get task file path
+					_, filePath, err := a.repo.FindByIDWithPath(i.task.ID)
+					if err != nil {
+						a.err = err
+						return a, nil
+					}
+					
+					// Get editor command
+					editorCmd, args := a.config.GetEditor()
+					args = append(args, filePath)
+					
+					// Create command for external editor
+					c := exec.Command(editorCmd, args...)
+					return a, tea.ExecProcess(c, func(err error) tea.Msg {
+						if err != nil {
+							return err
+						}
+						return taskEditedMsg{}
+					})
+				}
 			}
 		}
 
@@ -341,6 +373,10 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return a, nil
 		}
 		// Reload tasks to show the new one
+		return a, a.loadTasks
+
+	case taskEditedMsg:
+		// Reload tasks to reflect changes
 		return a, a.loadTasks
 
 	case error:
@@ -518,6 +554,8 @@ func (a *App) createTask(t *task.Task) tea.Cmd {
 		return taskCreatedMsg{err: err}
 	}
 }
+
+type taskEditedMsg struct{}
 
 func (a *App) Run() error {
 	p := tea.NewProgram(a, tea.WithAltScreen())

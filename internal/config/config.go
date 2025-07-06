@@ -21,6 +21,9 @@ type Config struct {
 	
 	// MCP server settings
 	MCP MCPConfig `toml:"mcp"`
+	
+	// Editor settings
+	Editor EditorConfig `toml:"editor"`
 }
 
 // TaskConfig contains task-related configuration
@@ -59,6 +62,16 @@ type MCPConfig struct {
 	AllowedPaths []string `toml:"allowed_paths"`
 }
 
+// EditorConfig contains editor configuration
+type EditorConfig struct {
+	// Command to launch editor (e.g., "vim", "code", "emacs")
+	// If empty, uses $EDITOR environment variable
+	Command string `toml:"command"`
+	
+	// Arguments to pass to editor command
+	Args []string `toml:"args"`
+}
+
 // DefaultConfig returns the default configuration
 func DefaultConfig() *Config {
 	return &Config{
@@ -74,6 +87,10 @@ func DefaultConfig() *Config {
 		MCP: MCPConfig{
 			Enabled:      true,
 			AllowedPaths: []string{},
+		},
+		Editor: EditorConfig{
+			Command: "", // Will use $EDITOR by default
+			Args:    []string{},
 		},
 	}
 }
@@ -135,4 +152,19 @@ func LoadFromDefaultLocation() (*Config, error) {
 	}
 	
 	return Load(configFile)
+}
+
+// GetEditor returns the editor command and arguments
+func (c *Config) GetEditor() (string, []string) {
+	if c.Editor.Command != "" {
+		return c.Editor.Command, c.Editor.Args
+	}
+	
+	// Fall back to $EDITOR environment variable
+	if editor := os.Getenv("EDITOR"); editor != "" {
+		return editor, []string{}
+	}
+	
+	// Default to vim if nothing is configured
+	return "vim", []string{}
 }

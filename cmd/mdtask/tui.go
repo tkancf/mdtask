@@ -23,6 +23,6 @@ func runTUI(cmd *cobra.Command, args []string) error {
 		return err
 	}
 
-	app := tui.NewApp(ctx.Repo)
+	app := tui.NewApp(ctx.Repo, ctx.Config)
 	return app.Run()
 }
