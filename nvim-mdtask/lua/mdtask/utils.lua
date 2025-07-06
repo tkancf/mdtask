@@ -160,7 +160,11 @@ function M.format_task(task, view_mode)
   -- Format main line and description line(s)
   local lines = {}
   -- Main line: - STATUS: Title (without deadline indicator and ID)
-  local main_line = string.format('- %s: %s', status, title)
+  local prefix = ''
+  if task.parent_id and task.parent_id ~= '' then
+    prefix = '  '
+  end
+  local main_line = string.format('%s- %s: %s', prefix, status, title)
   table.insert(lines, main_line)
   
   -- Compact mode: only show main line
@@ -187,6 +191,12 @@ function M.format_task(task, view_mode)
       local deadline_text = string.format('    - Deadline: %s/%s/%s', year, month, day)
       table.insert(lines, deadline_text)
     end
+  end
+  
+  -- Add parent task info if present
+  if task.parent_id and task.parent_id ~= '' then
+    local parent_id_short = task.parent_id:match('task/(.+)') or task.parent_id
+    table.insert(lines, string.format('    - Parent: %s', parent_id_short))
   end
   
   -- Return lines, deadline status, and task ID separately

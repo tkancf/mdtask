@@ -543,6 +543,16 @@ function M.show_task_list(tasks, title)
       require('mdtask.tasks').delete_task()
     end, opts)
     
+    -- sN to create subtask
+    vim.keymap.set('n', 'sN', function()
+      require('mdtask.tasks').new_subtask()
+    end, opts)
+    
+    -- sL to list subtasks
+    vim.keymap.set('n', 'sL', function()
+      require('mdtask.tasks').list_subtasks()
+    end, opts)
+    
     -- sv to toggle view mode
     vim.keymap.set('n', 'sv', function()
       -- Toggle between compact and detailed view
@@ -580,11 +590,13 @@ Navigation & View:
 
 Task Management:
   sn      New task
+  sN      New subtask (for current task)
   se      Edit task (full form)
   sa      Archive task
   sy      Copy task (without ID)
   sP      Paste task (create new)
   sdd     Delete task (with confirmation)
+  sL      List subtasks of current task
 
 Quick Status Change:
   ss      Toggle status
@@ -685,7 +697,7 @@ Direct Editing:
 end
 
 -- Show task creation/editing form
-function M.show_task_form(callback, task)
+function M.show_task_form(callback, task, form_title)
   task = task or {}
   
   -- Store form data
@@ -696,6 +708,11 @@ function M.show_task_form(callback, task)
     tags = task.tags and table.concat(task.tags, ', ') or '',
     content = task.content or ''
   }
+  
+  -- Show form title if provided
+  if form_title then
+    vim.notify(form_title, vim.log.levels.INFO)
+  end
   
   -- Show input prompts sequentially
   vim.ui.input({ prompt = 'Title: ', default = form_data.title }, function(title)

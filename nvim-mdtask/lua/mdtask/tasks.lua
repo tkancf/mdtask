@@ -575,4 +575,142 @@ function M.delete_task(task_id)
   end)
 end
 
+-- Create subtask
+function M.new_subtask(parent_id)
+  if not parent_id or parent_id == '' then
+    -- Get parent task ID from current position
+    local ui = require('mdtask.ui')
+    local row = vim.api.nvim_win_get_cursor(0)[1]
+    
+    parent_id = ui.line_to_task_id[row]
+    if not parent_id then
+      for i = row - 1, math.max(1, row - 4), -1 do
+        parent_id = ui.line_to_task_id[i]
+        if parent_id then break end
+      end
+    end
+    
+    if not parent_id then
+      utils.notify('No parent task found', vim.log.levels.ERROR)
+      return
+    end
+  end
+  
+  -- Get parent task details first
+  utils.get_task_by_id(parent_id, function(err, parent_task)
+    if err then
+      utils.notify('Failed to get parent task: ' .. err, vim.log.levels.ERROR)
+      return
+    end
+    
+    -- Show task form for subtask
+    ui.show_task_form(function(task_data)
+      local args = {'new', '--parent', parent_id}
+      
+      -- Add title (required)
+      if task_data.title and task_data.title ~= '' then
+        local cleaned_title = task_data.title:gsub('[\n\r]+', ' '):gsub('%s+', ' '):match('^%s*(.-)%s*$')
+        table.insert(args, '--title')
+        table.insert(args, cleaned_title)
+      else
+        utils.notify('Title is required', vim.log.levels.ERROR)
+        return
+      end
+      
+      -- Add description
+      local cleaned_description = (task_data.description or ''):gsub('[\n\r]+', ' '):gsub('%s+', ' '):match('^%s*(.-)%s*$')
+      table.insert(args, '--description')
+      table.insert(args, cleaned_description)
+      
+      -- Add content
+      table.insert(args, '--content')
+      table.insert(args, task_data.content or '')
+      
+      -- Add status (inherit from parent if not specified)
+      if task_data.status and task_data.status ~= '' then
+        table.insert(args, '--status')
+        table.insert(args, task_data.status)
+      else
+        table.insert(args, '--status')
+        table.insert(args, parent_task.status or 'TODO')
+      end
+      
+      -- Add tags
+      if task_data.tags and #task_data.tags > 0 then
+        local valid_tags = {}
+        for _, tag in ipairs(task_data.tags) do
+          if tag and tag:match('^%s*(.-)%s*$') ~= '' then
+            table.insert(valid_tags, tag:match('^%s*(.-)%s*$'))
+          end
+        end
+        if #valid_tags > 0 then
+          table.insert(args, '--tags')
+          table.insert(args, table.concat(valid_tags, ','))
+        end
+      end
+      
+      utils.execute_mdtask(args, function(err, output)
+        if err then
+          utils.notify('Failed to create subtask: ' .. err, vim.log.levels.ERROR)
+          return
+        end
+        
+        utils.notify(string.format('Subtask created for "%s"', parent_task.title))
+        
+        -- Refresh task list if it's open
+        if ui.task_list_buf and vim.api.nvim_buf_is_valid(ui.task_list_buf) then
+          M.list()
+        end
+      end)
+    end, nil, string.format('New Subtask for: %s', parent_task.title))
+  end)
+end
+
+-- List subtasks of a parent task
+function M.list_subtasks(parent_id)
+  if not parent_id or parent_id == '' then
+    -- Get parent task ID from current position
+    local ui = require('mdtask.ui')
+    local row = vim.api.nvim_win_get_cursor(0)[1]
+    
+    parent_id = ui.line_to_task_id[row]
+    if not parent_id then
+      for i = row - 1, math.max(1, row - 4), -1 do
+        parent_id = ui.line_to_task_id[i]
+        if parent_id then break end
+      end
+    end
+    
+    if not parent_id then
+      utils.notify('No parent task found', vim.log.levels.ERROR)
+      return
+    end
+  end
+  
+  -- Get parent task details
+  utils.get_task_by_id(parent_id, function(err, parent_task)
+    if err then
+      utils.notify('Failed to get parent task: ' .. err, vim.log.levels.ERROR)
+      return
+    end
+    
+    local args = {'list', '--parent', parent_id}
+    
+    utils.execute_mdtask(args, function(err, output)
+      if err then
+        utils.notify('Failed to list subtasks: ' .. err, vim.log.levels.ERROR)
+        return
+      end
+      
+      local tasks = utils.parse_json(output)
+      if not tasks or #tasks == 0 then
+        utils.notify(string.format('No subtasks found for "%s"', parent_task.title))
+        return
+      end
+      
+      ui.show_task_list(tasks, string.format('Subtasks of: %s', parent_task.title))
+    end)
+  end)
+end
+
 return M
