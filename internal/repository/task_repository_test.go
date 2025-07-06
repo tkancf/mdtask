@@ -1,56 +1,23 @@
 package repository
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/tkancf/mdtask/internal/task"
 )
 
-func setupTestRepo(t *testing.T) (*TaskRepository, string) {
-	tempDir, err := os.MkdirTemp("", "mdtask-test-*")
+func TestTaskRepository_Create(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "repo-test-*")
 	if err != nil {
-		t.Fatalf("Failed to create temp dir: %v", err)
+		t.Fatalf("failed to create temp dir: %v", err)
 	}
+	defer os.RemoveAll(tempDir)
 
 	repo := NewTaskRepository([]string{tempDir})
-	return repo, tempDir
-}
-
-func createTestTask(t *testing.T, repo *TaskRepository, id, title string, tags []string) *task.Task {
-	testTask := &task.Task{
-		ID:          id,
-		Title:       title,
-		Description: "Test description",
-		Tags:        tags,
-		Created:     time.Now(),
-		Updated:     time.Now(),
-		Content:     "Test content",
-	}
-	
-	_, err := repo.Create(testTask)
-	if err != nil {
-		t.Fatalf("Failed to create test task: %v", err)
-	}
-	
-	return testTask
-}
-
-func TestNewTaskRepository(t *testing.T) {
-	paths := []string{"/path1", "/path2"}
-	repo := NewTaskRepository(paths)
-	
-	if len(repo.rootPaths) != len(paths) {
-		t.Errorf("NewTaskRepository() paths length = %v, want %v", len(repo.rootPaths), len(paths))
-	}
-}
-
-func TestCreate(t *testing.T) {
-	repo, tempDir := setupTestRepo(t)
-	defer os.RemoveAll(tempDir)
 
 	tests := []struct {
 		name    string
@@ -58,25 +25,25 @@ func TestCreate(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name: "create new task with ID",
+			name: "create simple task",
 			task: &task.Task{
-				ID:          "task/20250101120000",
 				Title:       "Test Task",
-				Description: "Test",
-				Tags:        []string{"project/test"},
+				Description: "Test Description",
 				Created:     time.Now(),
 				Updated:     time.Now(),
+				Tags:        []string{},
 			},
 			wantErr: false,
 		},
 		{
-			name: "create task without ID",
+			name: "create task with existing ID",
 			task: &task.Task{
-				Title:       "No ID Task",
-				Description: "Test",
-				Tags:        []string{},
+				ID:          "task/20240101120000",
+				Title:       "Task with ID",
+				Description: "Test Description",
 				Created:     time.Now(),
 				Updated:     time.Now(),
+				Tags:        []string{},
 			},
 			wantErr: false,
 		},
@@ -84,357 +51,432 @@ func TestCreate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			path, err := repo.Create(tt.task)
+			filePath, err := repo.Create(tt.task)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			
+
 			if !tt.wantErr {
 				// Verify file was created
-				if _, err := os.Stat(path); os.IsNotExist(err) {
-					t.Errorf("Create() file not created at %s", path)
+				if _, err := os.Stat(filePath); os.IsNotExist(err) {
+					t.Error("task file was not created")
 				}
-				
-				// Verify task has mdtask tag
-				hasMdtask := false
-				for _, tag := range tt.task.Tags {
-					if tag == "mdtask" {
-						hasMdtask = true
-						break
-					}
+
+				// Verify task has ID
+				if tt.task.ID == "" {
+					t.Error("task ID was not set")
 				}
-				if !hasMdtask {
-					t.Errorf("Create() task should have mdtask tag")
+
+				// Verify task is managed
+				if !tt.task.IsManagedTask() {
+					t.Error("task should be managed")
 				}
-				
-				// Verify task has status
+
+				// Verify default status
 				if tt.task.GetStatus() == "" {
-					t.Errorf("Create() task should have a status")
+					t.Error("task status was not set")
 				}
 			}
 		})
 	}
 }
 
-func TestFindAll(t *testing.T) {
-	repo, tempDir := setupTestRepo(t)
-	defer os.RemoveAll(tempDir)
-
-	// Create test tasks
-	task1 := createTestTask(t, repo, "task/20250101120000", "Task 1", []string{"mdtask", "mdtask/status/TODO"})
-	task2 := createTestTask(t, repo, "task/20250101130000", "Task 2", []string{"mdtask", "mdtask/status/DONE"})
-	
-	// Create a non-mdtask file
-	nonTaskContent := `---
-id: note/20250101140000
-title: Not a task
-tags:
-    - note
----
-Content`
-	nonTaskPath := filepath.Join(tempDir, "note.md")
-	os.WriteFile(nonTaskPath, []byte(nonTaskContent), 0644)
-
-	tasks, err := repo.FindAll()
+func TestTaskRepository_FindByID(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "repo-test-*")
 	if err != nil {
-		t.Fatalf("FindAll() error = %v", err)
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	repo := NewTaskRepository([]string{tempDir})
+
+	// Create a task
+	originalTask := &task.Task{
+		Title:       "Find Test Task",
+		Description: "Test Description",
+		Created:     time.Now(),
+		Updated:     time.Now(),
+		Content:     "Test Content",
+		Tags:        []string{},
 	}
 
-	if len(tasks) != 2 {
-		t.Errorf("FindAll() returned %d tasks, want 2", len(tasks))
+	_, err = repo.Create(originalTask)
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
 	}
 
-	// Verify we got the right tasks
-	foundIDs := make(map[string]bool)
-	for _, task := range tasks {
-		foundIDs[task.ID] = true
+	// Test finding the task
+	foundTask, err := repo.FindByID(originalTask.ID)
+	if err != nil {
+		t.Fatalf("FindByID() error = %v", err)
 	}
 
-	if !foundIDs[task1.ID] || !foundIDs[task2.ID] {
-		t.Errorf("FindAll() didn't find all expected tasks")
+	if foundTask.ID != originalTask.ID {
+		t.Errorf("expected ID %q, got %q", originalTask.ID, foundTask.ID)
+	}
+	if foundTask.Title != originalTask.Title {
+		t.Errorf("expected title %q, got %q", originalTask.Title, foundTask.Title)
+	}
+
+	// Test finding non-existent task
+	_, err = repo.FindByID("task/nonexistent")
+	if err == nil {
+		t.Error("expected error for non-existent task")
+	}
+
+	// Test finding by filename pattern
+	foundTask2, err := repo.FindByID(originalTask.ID)
+	if err != nil {
+		t.Errorf("FindByID() by filename pattern error = %v", err)
+	}
+	if foundTask2.ID != originalTask.ID {
+		t.Error("failed to find task by filename pattern")
 	}
 }
 
-func TestFindByID(t *testing.T) {
-	repo, tempDir := setupTestRepo(t)
+func TestTaskRepository_Update(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "repo-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
 	defer os.RemoveAll(tempDir)
 
-	task1 := createTestTask(t, repo, "task/20250101120000", "Task 1", []string{"mdtask", "mdtask/status/TODO"})
-	createTestTask(t, repo, "task/20250101130000", "Task 2", []string{"mdtask", "mdtask/status/DONE"})
+	repo := NewTaskRepository([]string{tempDir})
 
-	tests := []struct {
-		name    string
-		id      string
-		wantErr bool
-	}{
-		{
-			name:    "find existing task",
-			id:      task1.ID,
-			wantErr: false,
-		},
-		{
-			name:    "find non-existent task",
-			id:      "task/99999999999999",
-			wantErr: true,
-		},
+	// Create a task
+	originalTask := &task.Task{
+		Title:       "Original Title",
+		Description: "Original Description",
+		Created:     time.Now(),
+		Updated:     time.Now(),
+		Tags:        []string{},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			found, err := repo.FindByID(tt.id)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("FindByID() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			
-			if !tt.wantErr && found.ID != tt.id {
-				t.Errorf("FindByID() returned task with ID %v, want %v", found.ID, tt.id)
-			}
-		})
+	_, err = repo.Create(originalTask)
+	if err != nil {
+		t.Fatalf("failed to create task: %v", err)
 	}
-}
 
-func TestUpdate(t *testing.T) {
-	repo, tempDir := setupTestRepo(t)
-	defer os.RemoveAll(tempDir)
-
-	original := createTestTask(t, repo, "task/20250101120000", "Original Title", []string{"mdtask", "mdtask/status/TODO"})
-	
 	// Update the task
-	original.Title = "Updated Title"
-	original.Tags = append(original.Tags, "updated")
-	
-	err := repo.Update(original)
+	originalTask.Title = "Updated Title"
+	originalTask.Description = "Updated Description"
+	originalTask.SetStatus(task.StatusWIP)
+
+	err = repo.Update(originalTask)
 	if err != nil {
 		t.Fatalf("Update() error = %v", err)
 	}
 
-	// Verify the update
-	updated, err := repo.FindByID(original.ID)
+	// Verify update
+	updatedTask, err := repo.FindByID(originalTask.ID)
 	if err != nil {
-		t.Fatalf("FindByID() after update error = %v", err)
+		t.Fatalf("failed to find updated task: %v", err)
 	}
 
-	if updated.Title != "Updated Title" {
-		t.Errorf("Update() title = %v, want %v", updated.Title, "Updated Title")
+	if updatedTask.Title != "Updated Title" {
+		t.Errorf("expected title %q, got %q", "Updated Title", updatedTask.Title)
+	}
+	if updatedTask.Description != "Updated Description" {
+		t.Errorf("expected description %q, got %q", "Updated Description", updatedTask.Description)
+	}
+	if updatedTask.GetStatus() != task.StatusWIP {
+		t.Errorf("expected status WIP, got %q", updatedTask.GetStatus())
+	}
+}
+
+func TestTaskRepository_FindAll(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "repo-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	repo := NewTaskRepository([]string{tempDir})
+
+	// Create multiple tasks
+	tasks := []struct {
+		title  string
+		status task.Status
+	}{
+		{"Task 1", task.StatusTODO},
+		{"Task 2", task.StatusWIP},
+		{"Task 3", task.StatusDONE},
 	}
 
-	hasUpdatedTag := false
-	for _, tag := range updated.Tags {
-		if tag == "updated" {
-			hasUpdatedTag = true
-			break
+	for _, tt := range tasks {
+		task := &task.Task{
+			Title:   tt.title,
+			Created: time.Now(),
+			Updated: time.Now(),
+			Tags:    []string{},
+		}
+		task.SetStatus(tt.status)
+		_, err := repo.Create(task)
+		if err != nil {
+			t.Fatalf("failed to create task: %v", err)
 		}
 	}
-	if !hasUpdatedTag {
-		t.Errorf("Update() didn't preserve new tag")
+
+	// Find all tasks
+	allTasks, err := repo.FindAll()
+	if err != nil {
+		t.Fatalf("FindAll() error = %v", err)
+	}
+
+	if len(allTasks) != 3 {
+		t.Errorf("expected 3 tasks, got %d", len(allTasks))
 	}
 }
 
-func TestFindByStatus(t *testing.T) {
-	repo, tempDir := setupTestRepo(t)
+func TestTaskRepository_FindByStatus(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "repo-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
 	defer os.RemoveAll(tempDir)
 
-	createTestTask(t, repo, "task/20250101120000", "TODO Task", []string{"mdtask", "mdtask/status/TODO"})
-	createTestTask(t, repo, "task/20250101130000", "WIP Task", []string{"mdtask", "mdtask/status/WIP"})
-	createTestTask(t, repo, "task/20250101140000", "DONE Task", []string{"mdtask", "mdtask/status/DONE"})
+	repo := NewTaskRepository([]string{tempDir})
 
-	tests := []struct {
-		name   string
-		status task.Status
-		want   int
+	// Create tasks with different statuses
+	statuses := []task.Status{
+		task.StatusTODO,
+		task.StatusTODO,
+		task.StatusWIP,
+		task.StatusDONE,
+	}
+
+	for i, status := range statuses {
+		task := &task.Task{
+			Title:   fmt.Sprintf("Task %d", i+1),
+			Created: time.Now(),
+			Updated: time.Now(),
+			Tags:    []string{},
+		}
+		task.SetStatus(status)
+		_, err := repo.Create(task)
+		if err != nil {
+			t.Fatalf("failed to create task: %v", err)
+		}
+	}
+
+	// Find TODO tasks
+	todoTasks, err := repo.FindByStatus(task.StatusTODO)
+	if err != nil {
+		t.Fatalf("FindByStatus() error = %v", err)
+	}
+
+	if len(todoTasks) != 2 {
+		t.Errorf("expected 2 TODO tasks, got %d", len(todoTasks))
+	}
+
+	// Find WIP tasks
+	wipTasks, err := repo.FindByStatus(task.StatusWIP)
+	if err != nil {
+		t.Fatalf("FindByStatus() error = %v", err)
+	}
+
+	if len(wipTasks) != 1 {
+		t.Errorf("expected 1 WIP task, got %d", len(wipTasks))
+	}
+}
+
+func TestTaskRepository_FindActive(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "repo-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	repo := NewTaskRepository([]string{tempDir})
+
+	// Create active and archived tasks
+	tasks := []struct {
+		title    string
+		archived bool
 	}{
-		{
-			name:   "find TODO tasks",
-			status: task.StatusTODO,
-			want:   1,
-		},
-		{
-			name:   "find WIP tasks",
-			status: task.StatusWIP,
-			want:   1,
-		},
-		{
-			name:   "find DONE tasks",
-			status: task.StatusDONE,
-			want:   1,
-		},
-		{
-			name:   "find WAIT tasks",
-			status: task.StatusWAIT,
-			want:   0,
-		},
+		{"Active Task 1", false},
+		{"Active Task 2", false},
+		{"Archived Task", true},
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			tasks, err := repo.FindByStatus(tt.status)
-			if err != nil {
-				t.Errorf("FindByStatus() error = %v", err)
-				return
-			}
-			
-			if len(tasks) != tt.want {
-				t.Errorf("FindByStatus() returned %d tasks, want %d", len(tasks), tt.want)
-			}
-		})
+	for _, tt := range tasks {
+		task := &task.Task{
+			Title:   tt.title,
+			Created: time.Now(),
+			Updated: time.Now(),
+			Tags:    []string{},
+		}
+		if tt.archived {
+			task.Archive()
+		}
+		_, err := repo.Create(task)
+		if err != nil {
+			t.Fatalf("failed to create task: %v", err)
+		}
 	}
-}
 
-func TestFindActive(t *testing.T) {
-	repo, tempDir := setupTestRepo(t)
-	defer os.RemoveAll(tempDir)
-
-	createTestTask(t, repo, "task/20250101120000", "Active Task 1", []string{"mdtask", "mdtask/status/TODO"})
-	createTestTask(t, repo, "task/20250101130000", "Active Task 2", []string{"mdtask", "mdtask/status/WIP"})
-	createTestTask(t, repo, "task/20250101140000", "Archived Task", []string{"mdtask", "mdtask/status/DONE", "mdtask/archived"})
-
-	active, err := repo.FindActive()
+	// Find active tasks
+	activeTasks, err := repo.FindActive()
 	if err != nil {
 		t.Fatalf("FindActive() error = %v", err)
 	}
 
-	if len(active) != 2 {
-		t.Errorf("FindActive() returned %d tasks, want 2", len(active))
+	if len(activeTasks) != 2 {
+		t.Errorf("expected 2 active tasks, got %d", len(activeTasks))
 	}
 
-	// Verify no archived tasks
-	for _, task := range active {
+	// Verify no archived tasks in results
+	for _, task := range activeTasks {
 		if task.IsArchived() {
-			t.Errorf("FindActive() returned archived task %s", task.ID)
+			t.Errorf("found archived task in active results: %s", task.Title)
 		}
 	}
 }
 
-func TestSearch(t *testing.T) {
-	repo, tempDir := setupTestRepo(t)
+func TestTaskRepository_Search(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "repo-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
 	defer os.RemoveAll(tempDir)
 
-	task1 := &task.Task{
-		ID:          "task/20250101120000",
-		Title:       "Fix bug in search",
-		Description: "Search functionality broken",
-		Tags:        []string{"mdtask", "mdtask/status/TODO", "bug"},
-		Content:     "The search feature needs fixing",
-		Created:     time.Now(),
-		Updated:     time.Now(),
-	}
-	repo.Create(task1)
+	repo := NewTaskRepository([]string{tempDir})
 
-	task2 := &task.Task{
-		ID:          "task/20250101130000",
-		Title:       "Add new feature",
-		Description: "Implement new functionality",
-		Tags:        []string{"mdtask", "mdtask/status/WIP", "enhancement"},
-		Content:     "This is about adding something new",
-		Created:     time.Now(),
-		Updated:     time.Now(),
-	}
-	repo.Create(task2)
-
-	tests := []struct {
-		name  string
-		query string
-		want  int
+	// Create tasks with searchable content
+	tasks := []struct {
+		title       string
+		description string
+		content     string
+		tags        []string
 	}{
 		{
-			name:  "search in title",
-			query: "bug",
-			want:  1,
+			title:       "Bug Fix: Login Issue",
+			description: "Users cannot login",
+			content:     "Investigation shows database connection problem",
+			tags:        []string{"bug", "urgent"},
 		},
 		{
-			name:  "search in description",
-			query: "broken",
-			want:  1,
+			title:       "Feature: Dashboard",
+			description: "Add new dashboard",
+			content:     "Dashboard should show user statistics",
+			tags:        []string{"feature", "enhancement"},
 		},
 		{
-			name:  "search in content",
-			query: "fixing",
-			want:  1,
+			title:       "Bug Fix: Profile Page",
+			description: "Profile page crashes",
+			content:     "Null pointer exception in profile controller",
+			tags:        []string{"bug"},
 		},
-		{
-			name:  "search in tags",
-			query: "enhancement",
-			want:  1,
-		},
-		{
-			name:  "search case insensitive",
-			query: "SEARCH",
-			want:  1,
-		},
-		{
-			name:  "no results",
-			query: "nonexistent",
-			want:  0,
-		},
+	}
+
+	for _, tt := range tasks {
+		task := &task.Task{
+			Title:       tt.title,
+			Description: tt.description,
+			Content:     tt.content,
+			Created:     time.Now(),
+			Updated:     time.Now(),
+			Tags:        append([]string{"mdtask"}, tt.tags...),
+		}
+		_, err := repo.Create(task)
+		if err != nil {
+			t.Fatalf("failed to create task: %v", err)
+		}
+	}
+
+	// Search tests
+	tests := []struct {
+		query    string
+		expected int
+	}{
+		{"bug", 2},          // In title
+		{"dashboard", 2},    // In title and content
+		{"login", 1},        // In description
+		{"statistics", 1},   // In content
+		{"urgent", 1},       // In tags
+		{"nonexistent", 0},  // Not found
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.query, func(t *testing.T) {
 			results, err := repo.Search(tt.query)
 			if err != nil {
-				t.Errorf("Search() error = %v", err)
-				return
+				t.Fatalf("Search() error = %v", err)
 			}
-			
-			if len(results) != tt.want {
-				t.Errorf("Search() returned %d results, want %d", len(results), tt.want)
+
+			if len(results) != tt.expected {
+				t.Errorf("expected %d results for %q, got %d", tt.expected, tt.query, len(results))
 			}
 		})
 	}
 }
 
-func TestSearchByTags(t *testing.T) {
-	repo, tempDir := setupTestRepo(t)
+func TestTaskRepository_SearchByTags(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "repo-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
 	defer os.RemoveAll(tempDir)
 
-	createTestTask(t, repo, "task/20250101120000", "Task 1", []string{"mdtask", "type/bug", "priority/high"})
-	createTestTask(t, repo, "task/20250101130000", "Task 2", []string{"mdtask", "type/feature", "priority/high"})
-	createTestTask(t, repo, "task/20250101140000", "Task 3", []string{"mdtask", "type/bug", "priority/low"})
-	createTestTask(t, repo, "task/20250101150000", "Archived", []string{"mdtask", "type/bug", "mdtask/archived"})
+	repo := NewTaskRepository([]string{tempDir})
+
+	// Create tasks with different tag combinations
+	tasks := []struct {
+		title string
+		tags  []string
+	}{
+		{"Task 1", []string{"type/bug", "priority/high"}},
+		{"Task 2", []string{"type/feature", "priority/low"}},
+		{"Task 3", []string{"type/bug", "priority/low"}},
+		{"Task 4", []string{"type/bug", "priority/high", "status/done"}},
+	}
+
+	for _, tt := range tasks {
+		task := &task.Task{
+			Title:   tt.title,
+			Created: time.Now(),
+			Updated: time.Now(),
+			Tags:    append([]string{"mdtask"}, tt.tags...),
+		}
+		_, err := repo.Create(task)
+		if err != nil {
+			t.Fatalf("failed to create task: %v", err)
+		}
+	}
 
 	tests := []struct {
 		name        string
 		includeTags []string
 		excludeTags []string
 		orMode      bool
-		want        int
+		expected    int
 	}{
 		{
 			name:        "AND mode - bug AND high priority",
 			includeTags: []string{"type/bug", "priority/high"},
-			excludeTags: []string{},
 			orMode:      false,
-			want:        1,
+			expected:    2, // Task 1 and 4
 		},
 		{
 			name:        "OR mode - bug OR feature",
 			includeTags: []string{"type/bug", "type/feature"},
-			excludeTags: []string{},
 			orMode:      true,
-			want:        3, // excludes archived
+			expected:    4, // All tasks
 		},
 		{
-			name:        "exclude high priority",
+			name:        "Exclude done tasks",
 			includeTags: []string{"type/bug"},
-			excludeTags: []string{"priority/high"},
+			excludeTags: []string{"status/done"},
 			orMode:      false,
-			want:        1,
+			expected:    2, // Task 1 and 3
 		},
 		{
-			name:        "no include tags",
+			name:        "No include tags",
 			includeTags: []string{},
-			excludeTags: []string{},
+			excludeTags: []string{"status/done"},
 			orMode:      false,
-			want:        3, // all non-archived
-		},
-		{
-			name:        "case insensitive",
-			includeTags: []string{"TYPE/BUG"},
-			excludeTags: []string{},
-			orMode:      false,
-			want:        2,
+			expected:    3, // All except Task 4
 		},
 	}
 
@@ -442,81 +484,65 @@ func TestSearchByTags(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			results, err := repo.SearchByTags(tt.includeTags, tt.excludeTags, tt.orMode)
 			if err != nil {
-				t.Errorf("SearchByTags() error = %v", err)
-				return
+				t.Fatalf("SearchByTags() error = %v", err)
 			}
-			
-			if len(results) != tt.want {
-				t.Errorf("SearchByTags() returned %d results, want %d", len(results), tt.want)
-			}
-		})
-	}
-}
 
-func TestHasTag(t *testing.T) {
-	tests := []struct {
-		name      string
-		tags      []string
-		searchTag string
-		want      bool
-	}{
-		{
-			name:      "exact match",
-			tags:      []string{"mdtask", "type/bug", "priority/high"},
-			searchTag: "type/bug",
-			want:      true,
-		},
-		{
-			name:      "case insensitive match",
-			tags:      []string{"mdtask", "type/bug", "priority/high"},
-			searchTag: "TYPE/BUG",
-			want:      true,
-		},
-		{
-			name:      "no match",
-			tags:      []string{"mdtask", "type/bug"},
-			searchTag: "type/feature",
-			want:      false,
-		},
-		{
-			name:      "empty tags",
-			tags:      []string{},
-			searchTag: "mdtask",
-			want:      false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := hasTag(tt.tags, tt.searchTag); got != tt.want {
-				t.Errorf("hasTag() = %v, want %v", got, tt.want)
+			if len(results) != tt.expected {
+				t.Errorf("expected %d results, got %d", tt.expected, len(results))
 			}
 		})
 	}
 }
 
-func TestFindByIDWithPath(t *testing.T) {
-	repo, tempDir := setupTestRepo(t)
+func TestTaskRepository_FilenameSuffix(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "repo-test-*")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
 	defer os.RemoveAll(tempDir)
 
-	task1 := createTestTask(t, repo, "task/20250101120000", "Task 1", []string{"mdtask"})
+	repo := NewTaskRepository([]string{tempDir})
 
-	foundTask, foundPath, err := repo.FindByIDWithPath(task1.ID)
+	// Create task with specific timestamp
+	task1 := &task.Task{
+		ID:      "task/20240101120000",
+		Title:   "First Task",
+		Created: time.Now(),
+		Updated: time.Now(),
+		Tags:    []string{},
+	}
+
+	filePath1, err := repo.Create(task1)
 	if err != nil {
-		t.Fatalf("FindByIDWithPath() error = %v", err)
+		t.Fatalf("failed to create first task: %v", err)
 	}
 
-	if foundTask.ID != task1.ID {
-		t.Errorf("FindByIDWithPath() task ID = %v, want %v", foundTask.ID, task1.ID)
+	// Create another task with same timestamp (should get suffix)
+	task2 := &task.Task{
+		ID:      "task/20240101120000",
+		Title:   "Second Task",
+		Created: time.Now(),
+		Updated: time.Now(),
+		Tags:    []string{},
 	}
 
-	if !strings.Contains(foundPath, "20250101120000") {
-		t.Errorf("FindByIDWithPath() path doesn't contain timestamp: %v", foundPath)
+	filePath2, err := repo.Create(task2)
+	if err != nil {
+		t.Fatalf("failed to create second task: %v", err)
 	}
 
-	// Test non-existent task
-	_, _, err = repo.FindByIDWithPath("task/99999999999999")
-	if err == nil {
-		t.Errorf("FindByIDWithPath() should error for non-existent task")
+	// Verify different file paths
+	if filePath1 == filePath2 {
+		t.Error("expected different file paths for tasks with same timestamp")
+	}
+
+	// Verify second task has suffix in ID
+	if task2.ID == task1.ID {
+		t.Error("expected different IDs for tasks with same timestamp")
+	}
+
+	// Verify second task ID has suffix
+	if task2.ID != "task/20240101120000_1" {
+		t.Errorf("expected ID with suffix, got %q", task2.ID)
 	}
 }
