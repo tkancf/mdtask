@@ -723,9 +723,15 @@ end
 
 -- Show content editor in a floating window
 function M.show_content_editor(form_data, callback)
+  -- Calculate larger window size (90% of screen)
+  local win_width = vim.api.nvim_get_option('columns')
+  local win_height = vim.api.nvim_get_option('lines')
+  local width = math.floor(win_width * 0.9)
+  local height = math.floor(win_height * 0.8)
+  
   local buf, win = utils.create_float_win({
-    width = 80,
-    height = 20,
+    width = width,
+    height = height,
   })
   
   local content_lines = {
