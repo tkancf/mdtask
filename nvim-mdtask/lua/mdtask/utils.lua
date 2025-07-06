@@ -157,14 +157,14 @@ function M.format_task(task, view_mode)
     end
   end
   
-  -- Add visual indicators
+  -- Add visual indicators (text-based)
   local indicators = {}
   
-  -- Priority indicator (high priority tasks get ⚡)
+  -- Priority indicator
   if task.tags then
     for _, tag in ipairs(task.tags) do
       if tag:match('priority/high') or tag:match('urgent') then
-        table.insert(indicators, '⚡')
+        table.insert(indicators, '[!]')
         break
       end
     end
@@ -176,33 +176,18 @@ function M.format_task(task, view_mode)
     local deadline_date = task.deadline:sub(1, 10) -- Get just the date part
     
     if deadline_date < today then
-      table.insert(indicators, '🔴') -- Overdue
+      table.insert(indicators, '[OVERDUE]') 
     elseif deadline_date == today then
-      table.insert(indicators, '🟡') -- Due today
+      table.insert(indicators, '[TODAY]')
     else
       -- Check if due within next 3 days
       local deadline_time = os.time{year=deadline_date:sub(1,4), month=deadline_date:sub(6,7), day=deadline_date:sub(9,10)}
       local today_time = os.time()
       local three_days = today_time + (3 * 24 * 60 * 60)
       if deadline_time <= three_days then
-        table.insert(indicators, '🟠') -- Due soon
+        table.insert(indicators, '[SOON]')
       end
     end
-  end
-  
-  -- Work in progress indicator
-  if status == 'WIP' then
-    table.insert(indicators, '🔄')
-  end
-  
-  -- Waiting indicator
-  if status == 'WAIT' then
-    table.insert(indicators, '⏳')
-  end
-  
-  -- Done indicator
-  if status == 'DONE' then
-    table.insert(indicators, '✅')
   end
   
   -- Build indicator string
