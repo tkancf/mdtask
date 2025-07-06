@@ -160,11 +160,7 @@ function M.format_task(task, view_mode)
   -- Format main line and description line(s)
   local lines = {}
   -- Main line: - STATUS: Title (without deadline indicator and ID)
-  local prefix = ''
-  if task.parent_id and task.parent_id ~= '' then
-    prefix = '  '
-  end
-  local main_line = string.format('%s- %s: %s', prefix, status, title)
+  local main_line = string.format('- %s: %s', status, title)
   table.insert(lines, main_line)
   
   -- Compact mode: only show main line

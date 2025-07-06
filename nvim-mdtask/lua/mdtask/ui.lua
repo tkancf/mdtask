@@ -121,10 +121,7 @@ function M.show_task_list(tasks, title)
   -- Store tasks for re-sorting
   M.current_tasks = tasks
   
-  -- Apply current sort
-  if M.current_sort ~= 'default' and sort_functions[M.current_sort] then
-    tasks = sort_functions[M.current_sort](vim.tbl_deep_extend('force', {}, tasks))
-  end
+  -- Note: Sorting will be applied to root tasks only to maintain hierarchy
   
   -- Add sort indicator to title
   if M.current_sort ~= 'default' then
@@ -198,8 +195,34 @@ function M.show_task_list(tasks, title)
   local task_id_info = {}  -- { line_number = task_id }
   M.line_to_task_id = {}  -- Reset line to task ID mapping
   
+  -- Build a map of parent tasks and their children
+  local parent_map = {}  -- parent_id -> list of child tasks
+  local root_tasks = {}  -- tasks without parents
+  local task_by_id = {}  -- quick lookup map
+  
   for _, task in ipairs(tasks) do
+    task_by_id[task.id] = task
+    if task.parent_id and task.parent_id ~= '' then
+      parent_map[task.parent_id] = parent_map[task.parent_id] or {}
+      table.insert(parent_map[task.parent_id], task)
+    else
+      table.insert(root_tasks, task)
+    end
+  end
+  
+  -- Function to display task and its children recursively
+  local function display_task_tree(task, indent_level)
+    indent_level = indent_level or 0
+    
+    -- Format task with indentation
     local task_lines, deadline_status, task_id = utils.format_task(task, M.current_view_mode)
+    
+    -- Apply additional indentation for subtasks
+    if indent_level > 0 then
+      for i, line in ipairs(task_lines) do
+        task_lines[i] = string.rep('  ', indent_level) .. line
+      end
+    end
     
     local main_line_num = #lines + 1  -- Line number for the main task line
     
@@ -217,6 +240,23 @@ function M.show_task_list(tasks, title)
     for _, line in ipairs(task_lines) do
       table.insert(lines, line)
     end
+    
+    -- Display children
+    if parent_map[task.id] then
+      for _, child in ipairs(parent_map[task.id]) do
+        display_task_tree(child, indent_level + 1)
+      end
+    end
+  end
+  
+  -- Apply sorting to root tasks only
+  if M.current_sort ~= 'default' and sort_functions[M.current_sort] then
+    root_tasks = sort_functions[M.current_sort](root_tasks)
+  end
+  
+  -- Display all root tasks and their subtrees
+  for _, task in ipairs(root_tasks) do
+    display_task_tree(task, 0)
   end
   
   -- Add empty lines to fill the window if needed
