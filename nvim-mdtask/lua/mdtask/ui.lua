@@ -969,7 +969,7 @@ Filtering:
 Direct Editing:
   :w      Save changes (edit mode)
 ]]
-      -- Create help buffer and window on the right side
+      -- Create help buffer
       local help_buf = vim.api.nvim_create_buf(false, true)
       vim.api.nvim_buf_set_lines(help_buf, 0, -1, false, vim.split(help_text, '\n'))
       vim.api.nvim_buf_set_option(help_buf, 'modifiable', false)
@@ -980,35 +980,49 @@ Direct Editing:
       -- Save current window
       local current_win = vim.api.nvim_get_current_win()
       
-      -- Create vertical split on the right
-      vim.cmd('vsplit')
-      vim.cmd('wincmd L')  -- Move to the right
+      -- Get current window dimensions and position
+      local current_win_config = vim.api.nvim_win_get_config(current_win)
+      local current_width = vim.api.nvim_win_get_width(current_win)
+      local current_height = vim.api.nvim_win_get_height(current_win)
       
-      -- Set buffer in the new window
-      vim.api.nvim_win_set_buf(0, help_buf)
+      -- Calculate help window dimensions and position
+      local help_width = math.floor(current_width * 0.4)  -- 40% of current window width
+      local help_height = current_height - 4  -- Leave some margin
       
-      -- Set window width (about 1/3 of screen)
-      local width = math.floor(vim.o.columns * 0.35)
-      vim.api.nvim_win_set_width(0, width)
+      -- Position help window to the right of current window
+      local help_row = current_win_config.row or 0
+      local help_col = (current_win_config.col or 0) + current_width - help_width
+      
+      -- Create floating help window
+      local help_win = vim.api.nvim_open_win(help_buf, true, {
+        relative = current_win_config.relative or 'editor',
+        width = help_width,
+        height = help_height,
+        row = help_row,
+        col = help_col,
+        border = 'rounded',
+        style = 'minimal',
+        zindex = 100,  -- Ensure it's on top
+      })
       
       -- Set window options
-      vim.api.nvim_win_set_option(0, 'number', false)
-      vim.api.nvim_win_set_option(0, 'relativenumber', false)
-      vim.api.nvim_win_set_option(0, 'cursorline', true)
-      vim.api.nvim_win_set_option(0, 'wrap', false)
+      vim.api.nvim_win_set_option(help_win, 'number', false)
+      vim.api.nvim_win_set_option(help_win, 'relativenumber', false)
+      vim.api.nvim_win_set_option(help_win, 'cursorline', true)
+      vim.api.nvim_win_set_option(help_win, 'wrap', false)
       
       -- Keymaps for closing help
       local help_opts = { buffer = help_buf, silent = true }
       vim.keymap.set('n', 'q', function()
-        vim.api.nvim_win_close(0, true)
+        vim.api.nvim_win_close(help_win, true)
         vim.api.nvim_set_current_win(current_win)
       end, help_opts)
       vim.keymap.set('n', '<Esc>', function()
-        vim.api.nvim_win_close(0, true)
+        vim.api.nvim_win_close(help_win, true)
         vim.api.nvim_set_current_win(current_win)
       end, help_opts)
       vim.keymap.set('n', '?', function()
-        vim.api.nvim_win_close(0, true)
+        vim.api.nvim_win_close(help_win, true)
         vim.api.nvim_set_current_win(current_win)
       end, help_opts)
     end, opts)
