@@ -219,9 +219,66 @@ internal/
 4. **Plugins**: Extension system for custom views
 5. **Sync indicators**: Real-time file system monitoring
 
+## Implementation Status
+
+### Completed Features ✓
+
+1. **Basic TUI Infrastructure** ✓
+   - Set up Bubble Tea dependencies
+   - Created TUI subcommand
+   - Implemented project structure
+
+2. **Task List View** ✓
+   - Display tasks with status, ID, and title
+   - Keyboard navigation (j/k, arrow keys)
+   - Search/filter functionality (built-in)
+   - Help display
+
+3. **Task Detail View** ✓
+   - Full markdown content display
+   - Task metadata display (ID, status, tags, deadline)
+   - Navigation back to list
+
+4. **Status Transitions** ✓
+   - Status selector component
+   - Keyboard shortcut 's' to change status
+   - Persists changes to filesystem
+
+### Remaining Features
+
+1. **Task Creation**
+   - Quick task creation with 'n' key
+   - Title input
+   - Optional tags and deadline
+
+2. **Task Editing**
+   - External editor integration
+   - Edit task content and metadata
+
+3. **Advanced Features**
+   - Tag management
+   - Deadline setting
+   - Archive/unarchive
+   - Sorting options
+
+## Usage
+
+```bash
+# Launch TUI
+./mdtask tui
+
+# Keyboard shortcuts
+- j/k or ↑/↓: Navigate list
+- Enter or v: View task details
+- s: Change task status
+- /: Search tasks
+- q: Quit
+- ?: Show help
+```
+
 ## Next Steps
 
-1. Create feature branch ✓
-2. Set up Bubble Tea dependencies
-3. Implement basic task list view
-4. Iterate based on user feedback
+1. Implement task creation functionality
+2. Add external editor integration
+3. Add more keyboard shortcuts
+4. Test with real task data
