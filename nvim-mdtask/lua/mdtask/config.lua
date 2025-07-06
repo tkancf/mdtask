@@ -14,6 +14,21 @@ local function find_mdtask_binary()
     return './mdtask'
   end
   
+  -- Try parent directory (in case we're in a subdirectory)
+  local parent_binary = cwd .. '/../mdtask'
+  if vim.fn.executable(parent_binary) == 1 then
+    return parent_binary
+  end
+  
+  -- Try looking for mdtask project root by finding git root
+  local git_root = vim.fn.system('git rev-parse --show-toplevel 2>/dev/null'):gsub('\n', '')
+  if git_root and git_root ~= '' then
+    local git_root_binary = git_root .. '/mdtask'
+    if vim.fn.executable(git_root_binary) == 1 then
+      return git_root_binary
+    end
+  end
+  
   -- Fall back to system PATH
   return 'mdtask'
 end
