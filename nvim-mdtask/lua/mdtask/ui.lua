@@ -456,8 +456,8 @@ function M.show_task_list(tasks, title)
       desc = 'Close help window when main mdtask window closes'
     })
     
-    -- Add :q command to close the window
-    vim.api.nvim_buf_create_user_command(buf, 'q', function()
+    -- Add custom close commands (user commands must start with uppercase)
+    local function close_mdtask_window()
       -- Close help window if it exists
       if M.help_win and vim.api.nvim_win_is_valid(M.help_win) then
         vim.api.nvim_win_close(M.help_win, true)
@@ -465,39 +465,51 @@ function M.show_task_list(tasks, title)
       end
       -- Close main window
       vim.api.nvim_win_close(win, true)
-    end, { desc = 'Close mdtask window' })
+    end
     
-    -- Add :quit as alias for :q
-    vim.api.nvim_buf_create_user_command(buf, 'quit', function()
-      -- Close help window if it exists
-      if M.help_win and vim.api.nvim_win_is_valid(M.help_win) then
-        vim.api.nvim_win_close(M.help_win, true)
-        M.help_win = nil
-      end
-      -- Close main window
-      vim.api.nvim_win_close(win, true)
-    end, { desc = 'Close mdtask window' })
+    vim.api.nvim_buf_create_user_command(buf, 'Q', close_mdtask_window, { desc = 'Close mdtask window' })
+    vim.api.nvim_buf_create_user_command(buf, 'Quit', close_mdtask_window, { desc = 'Close mdtask window' })
+    vim.api.nvim_buf_create_user_command(buf, 'Qa', close_mdtask_window, { desc = 'Close mdtask window' })
+    vim.api.nvim_buf_create_user_command(buf, 'Qall', close_mdtask_window, { desc = 'Close mdtask window' })
     
-    -- Add :qa and :qall commands for consistency
-    vim.api.nvim_buf_create_user_command(buf, 'qa', function()
-      -- Close help window if it exists
-      if M.help_win and vim.api.nvim_win_is_valid(M.help_win) then
-        vim.api.nvim_win_close(M.help_win, true)
-        M.help_win = nil
+    -- Set up command-line abbreviations for more natural :q behavior
+    -- These work only in command mode and only for this buffer
+    vim.keymap.set('c', 'q', function()
+      -- Only expand if we're in command mode and it's the complete command
+      local cmdline = vim.fn.getcmdline()
+      local cmdtype = vim.fn.getcmdtype()
+      if cmdtype == ':' and cmdline == 'q' then
+        return 'Q'
       end
-      -- Close main window
-      vim.api.nvim_win_close(win, true)
-    end, { desc = 'Close mdtask window' })
+      return 'q'
+    end, { buffer = buf, expr = true })
     
-    vim.api.nvim_buf_create_user_command(buf, 'qall', function()
-      -- Close help window if it exists
-      if M.help_win and vim.api.nvim_win_is_valid(M.help_win) then
-        vim.api.nvim_win_close(M.help_win, true)
-        M.help_win = nil
+    vim.keymap.set('c', 'quit', function()
+      local cmdline = vim.fn.getcmdline()
+      local cmdtype = vim.fn.getcmdtype()
+      if cmdtype == ':' and cmdline == 'quit' then
+        return 'Quit'
       end
-      -- Close main window
-      vim.api.nvim_win_close(win, true)
-    end, { desc = 'Close mdtask window' })
+      return 'quit'
+    end, { buffer = buf, expr = true })
+    
+    vim.keymap.set('c', 'qa', function()
+      local cmdline = vim.fn.getcmdline()
+      local cmdtype = vim.fn.getcmdtype()
+      if cmdtype == ':' and cmdline == 'qa' then
+        return 'Qa'
+      end
+      return 'qa'
+    end, { buffer = buf, expr = true })
+    
+    vim.keymap.set('c', 'qall', function()
+      local cmdline = vim.fn.getcmdline()
+      local cmdtype = vim.fn.getcmdtype()
+      if cmdtype == ':' and cmdline == 'qall' then
+        return 'Qall'
+      end
+      return 'qall'
+    end, { buffer = buf, expr = true })
     
     -- Set up keymaps
     local opts = { buffer = buf, silent = true }
