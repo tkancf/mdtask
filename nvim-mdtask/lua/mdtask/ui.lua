@@ -736,8 +736,7 @@ function M.show_content_editor(form_data, callback)
   
   local content_lines = {
     '# Task Content',
-    '# Press <C-s> to save and create task',
-    '# Press <C-c>, <Esc> or :q to cancel',
+    '# :w to save, :q to cancel, :wq to save and exit',
     '# ---',
     '',
   }
@@ -765,10 +764,13 @@ function M.show_content_editor(form_data, callback)
   local line_count = vim.api.nvim_buf_line_count(buf)
   vim.api.nvim_win_set_cursor(win, {line_count, 0})
   
+  -- Track if content has been saved
+  local content_saved = false
+  
   -- Create save function
-  local function save_and_close()
+  local function save_content()
     -- Get content (skip header lines)
-    local lines = vim.api.nvim_buf_get_lines(buf, 4, -1, false)
+    local lines = vim.api.nvim_buf_get_lines(buf, 3, -1, false)
     form_data.content = table.concat(lines, '\n'):gsub('^\n+', ''):gsub('\n+$', '')
     
     -- Parse tags into array
@@ -779,57 +781,67 @@ function M.show_content_editor(form_data, callback)
       end
     end
     
-    -- Close window
+    -- Mark as saved
+    content_saved = true
+    vim.api.nvim_buf_set_option(buf, 'modified', false)
+    
+    -- Store parsed data
+    form_data._parsed = {
+      title = form_data.title,
+      description = form_data.description,
+      status = form_data.status,
+      tags = tags,
+      content = form_data.content
+    }
+  end
+  
+  -- Create close function
+  local function close_window()
     vim.api.nvim_win_close(win, true)
     
-    -- Trigger callback with parsed data
-    if callback then
-      callback({
-        title = form_data.title,
-        description = form_data.description,
-        status = form_data.status,
-        tags = tags,
-        content = form_data.content
-      })
+    -- Trigger callback if content was saved
+    if content_saved and callback then
+      callback(form_data._parsed)
+    end
+    
+    -- Return to task list if it exists
+    if M.task_list_win and vim.api.nvim_win_is_valid(M.task_list_win) then
+      vim.api.nvim_set_current_win(M.task_list_win)
     end
   end
   
-  -- Set up keymaps
-  local opts = { buffer = buf, silent = true }
+  -- Set buffer name for commands
+  vim.api.nvim_buf_set_name(buf, 'mdtask-content')
   
-  -- Save shortcuts
-  vim.keymap.set('n', '<C-s>', save_and_close, opts)
-  vim.keymap.set('i', '<C-s>', save_and_close, opts)
+  -- Define commands for this buffer
+  vim.api.nvim_buf_create_user_command(buf, 'w', function()
+    save_content()
+    utils.notify('Content saved')
+  end, {})
   
-  -- Cancel shortcuts
-  vim.keymap.set('n', '<C-c>', function()
-    vim.api.nvim_win_close(win, true)
-    -- Return to task list if it exists
-    if M.task_list_win and vim.api.nvim_win_is_valid(M.task_list_win) then
-      vim.api.nvim_set_current_win(M.task_list_win)
+  vim.api.nvim_buf_create_user_command(buf, 'q', function()
+    if vim.api.nvim_buf_get_option(buf, 'modified') then
+      utils.notify('No write since last change (add ! to override)', vim.log.levels.WARN)
+    else
+      close_window()
     end
-  end, opts)
-  vim.keymap.set('i', '<C-c>', '<Esc>:q<CR>', opts)
+  end, {})
   
-  -- Add Esc key to cancel and return to task list
-  vim.keymap.set('n', '<Esc>', function()
-    vim.api.nvim_win_close(win, true)
-    -- Return to task list if it exists
-    if M.task_list_win and vim.api.nvim_win_is_valid(M.task_list_win) then
-      vim.api.nvim_set_current_win(M.task_list_win)
-    end
-  end, opts)
+  vim.api.nvim_buf_create_user_command(buf, 'q!', function()
+    close_window()
+  end, { bang = true })
   
-  -- Add 'q' mapping for quick quit (only in normal mode, when not modified)
-  vim.keymap.set('n', 'q', function()
-    if not vim.api.nvim_buf_get_option(buf, 'modified') then
-      vim.api.nvim_win_close(win, true)
-      -- Return to task list if it exists
-      if M.task_list_win and vim.api.nvim_win_is_valid(M.task_list_win) then
-        vim.api.nvim_set_current_win(M.task_list_win)
-      end
+  vim.api.nvim_buf_create_user_command(buf, 'wq', function()
+    save_content()
+    close_window()
+  end, {})
+  
+  vim.api.nvim_buf_create_user_command(buf, 'x', function()
+    if vim.api.nvim_buf_get_option(buf, 'modified') then
+      save_content()
     end
-  end, opts)
+    close_window()
+  end, {})
 end
 
 
