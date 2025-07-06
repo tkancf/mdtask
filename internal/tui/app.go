@@ -34,6 +34,7 @@ type App struct {
 	detail         *views.DetailView
 	statusSelector *components.StatusSelector
 	selectedTask   *task.Task
+	selectedTasks  map[string]*task.Task // For multi-select
 	viewState      viewState
 	width          int
 	height         int
@@ -43,11 +44,18 @@ type App struct {
 
 // taskItem implements list.Item interface
 type taskItem struct {
-	task *task.Task
+	task     *task.Task
+	selected bool
 }
 
 func (i taskItem) FilterValue() string { return i.task.Title }
-func (i taskItem) Title() string       { return i.task.Title }
+func (i taskItem) Title() string {
+	prefix := "  "
+	if i.selected {
+		prefix = "✓ "
+	}
+	return prefix + i.task.Title
+}
 func (i taskItem) Description() string {
 	status := ""
 	for _, tag := range i.task.Tags {
@@ -117,8 +125,12 @@ func NewApp(repo repository.Repository) *App {
 	l.AdditionalShortHelpKeys = func() []key.Binding {
 		return []key.Binding{
 			key.NewBinding(
-				key.WithKeys("enter", "v"),
-				key.WithHelp("enter/v", "view task"),
+				key.WithKeys("enter"),
+				key.WithHelp("enter", "view task"),
+			),
+			key.NewBinding(
+				key.WithKeys("v"),
+				key.WithHelp("v", "select/deselect"),
 			),
 			key.NewBinding(
 				key.WithKeys("s"),
@@ -128,8 +140,9 @@ func NewApp(repo repository.Repository) *App {
 	}
 
 	return &App{
-		repo: repo,
-		list: l,
+		repo:          repo,
+		list:          l,
+		selectedTasks: make(map[string]*task.Task),
 	}
 }
 
@@ -156,7 +169,7 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case "q", "ctrl+c":
 				a.quitting = true
 				return a, tea.Quit
-			case "enter", "v":
+			case "enter":
 				// Open task detail view
 				if i, ok := a.list.SelectedItem().(taskItem); ok {
 					a.detail = views.NewDetailView(i.task)
@@ -164,14 +177,61 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					a.viewState = detailView
 					return a, a.detail.Init()
 				}
+			case "v":
+				// Toggle selection for multi-select
+				if i, ok := a.list.SelectedItem().(taskItem); ok {
+					if _, exists := a.selectedTasks[i.task.ID]; exists {
+						delete(a.selectedTasks, i.task.ID)
+					} else {
+						a.selectedTasks[i.task.ID] = i.task
+					}
+					// Update the item in the list
+					items := a.list.Items()
+					for idx, item := range items {
+						if ti, ok := item.(taskItem); ok && ti.task.ID == i.task.ID {
+							ti.selected = !ti.selected
+							items[idx] = ti
+							break
+						}
+					}
+					a.list.SetItems(items)
+				}
 			case "s":
 				// Open status selector
-				if i, ok := a.list.SelectedItem().(taskItem); ok {
+				if len(a.selectedTasks) > 0 {
+					// Bulk status change
+					a.statusSelector = components.NewStatusSelector(task.StatusTODO)
+					a.viewState = statusSelectView
+					return a, a.statusSelector.Init()
+				} else if i, ok := a.list.SelectedItem().(taskItem); ok {
+					// Single task status change
 					a.selectedTask = i.task
 					a.statusSelector = components.NewStatusSelector(a.selectedTask.GetStatus())
 					a.viewState = statusSelectView
 					return a, a.statusSelector.Init()
 				}
+			case "a":
+				// Select all tasks
+				items := a.list.Items()
+				for idx, item := range items {
+					if ti, ok := item.(taskItem); ok {
+						ti.selected = true
+						a.selectedTasks[ti.task.ID] = ti.task
+						items[idx] = ti
+					}
+				}
+				a.list.SetItems(items)
+			case "A":
+				// Clear all selections
+				a.selectedTasks = make(map[string]*task.Task)
+				items := a.list.Items()
+				for idx, item := range items {
+					if ti, ok := item.(taskItem); ok {
+						ti.selected = false
+						items[idx] = ti
+					}
+				}
+				a.list.SetItems(items)
 			}
 		}
 
@@ -190,7 +250,12 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return a, nil
 
 	case components.StatusSelectedMsg:
-		if a.selectedTask != nil {
+		if len(a.selectedTasks) > 0 {
+			// Bulk status update
+			a.viewState = listView
+			return a, a.updateTasks(a.selectedTasks, msg.Status)
+		} else if a.selectedTask != nil {
+			// Single task update
 			a.selectedTask.SetStatus(msg.Status)
 			a.viewState = listView
 			return a, a.updateTask(a.selectedTask)
@@ -207,6 +272,8 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.err = msg.err
 			return a, nil
 		}
+		// Clear selections after update
+		a.selectedTasks = make(map[string]*task.Task)
 		// Reload tasks to reflect changes
 		return a, a.loadTasks
 
@@ -253,7 +320,16 @@ func (a *App) View() string {
 			return lipgloss.JoinVertical(lipgloss.Left, title, selector, help)
 		}
 	case listView:
-		return a.list.View()
+		listView := a.list.View()
+		if len(a.selectedTasks) > 0 {
+			selectedInfo := lipgloss.NewStyle().
+				Foreground(lipgloss.Color("99")).
+				Bold(true).
+				Padding(0, 2).
+				Render(fmt.Sprintf("%d tasks selected", len(a.selectedTasks)))
+			return lipgloss.JoinVertical(lipgloss.Left, listView, selectedInfo)
+		}
+		return listView
 	}
 	
 	return a.list.View()
@@ -281,6 +357,18 @@ func (a *App) updateTask(t *task.Task) tea.Cmd {
 	return func() tea.Msg {
 		err := a.repo.Update(t)
 		return taskUpdatedMsg{err: err}
+	}
+}
+
+func (a *App) updateTasks(tasks map[string]*task.Task, status task.Status) tea.Cmd {
+	return func() tea.Msg {
+		for _, t := range tasks {
+			t.SetStatus(status)
+			if err := a.repo.Update(t); err != nil {
+				return taskUpdatedMsg{err: err}
+			}
+		}
+		return taskUpdatedMsg{err: nil}
 	}
 }
 

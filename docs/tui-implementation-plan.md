@@ -244,6 +244,13 @@ internal/
    - Keyboard shortcut 's' to change status
    - Persists changes to filesystem
 
+5. **Multi-Select Functionality** ✓
+   - Select/deselect individual tasks with 'v'
+   - Select all tasks with 'a'
+   - Clear all selections with 'A'
+   - Bulk status changes for selected tasks
+   - Visual indicator showing number of selected tasks
+
 ### Remaining Features
 
 1. **Task Creation**
@@ -269,8 +276,11 @@ internal/
 
 # Keyboard shortcuts
 - j/k or ↑/↓: Navigate list
-- Enter or v: View task details
-- s: Change task status
+- Enter: View task details
+- v: Select/deselect task for multi-select
+- a: Select all tasks
+- A: Clear all selections
+- s: Change status (single task or bulk for selected tasks)
 - /: Search tasks
 - q: Quit
 - ?: Show help
