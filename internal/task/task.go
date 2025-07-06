@@ -143,3 +143,33 @@ func (t *Task) SetReminder(reminder time.Time) {
 func (t *Task) RemoveReminder() {
 	t.setTagWithPrefix(constants.ReminderTagPrefix, "")
 }
+
+// Parent-child relationship methods
+
+// GetParentID returns the parent task ID if this task is a subtask
+func (t *Task) GetParentID() string {
+	if value, ok := t.getTagWithPrefix(constants.ParentTagPrefix); ok {
+		return value
+	}
+	return ""
+}
+
+// SetParentID sets the parent task ID, making this task a subtask
+func (t *Task) SetParentID(parentID string) {
+	t.setTagWithPrefix(constants.ParentTagPrefix, parentID)
+}
+
+// RemoveParent removes the parent relationship
+func (t *Task) RemoveParent() {
+	t.setTagWithPrefix(constants.ParentTagPrefix, "")
+}
+
+// HasParent returns true if this task is a subtask
+func (t *Task) HasParent() bool {
+	return t.GetParentID() != ""
+}
+
+// IsParentOf returns true if this task is the parent of the given task ID
+func (t *Task) IsParentOf(childID string) bool {
+	return t.ID == childID
+}

@@ -28,6 +28,7 @@ var (
 	newStatus      string
 	newDeadline    string
 	newReminder    string
+	newParent      string
 )
 
 func init() {
@@ -155,6 +156,41 @@ func runNew(cmd *cobra.Command, args []string) error {
 			reminder = time.Date(reminder.Year(), reminder.Month(), reminder.Day(), 9, 0, 0, 0, reminder.Location())
 		}
 		t.SetReminder(reminder)
+	}
+
+	// Handle parent task relationship
+	if newParent != "" {
+		// Validate parent task ID format
+		if !strings.HasPrefix(newParent, "task/") {
+			// Try to add the prefix if it's missing
+			if _, err := time.Parse("20060102150405", newParent); err == nil {
+				newParent = "task/" + newParent
+			} else {
+				return fmt.Errorf("invalid parent task ID format: %s", newParent)
+			}
+		}
+		
+		// Validate parent task exists
+		paths, _ := cmd.Flags().GetStringSlice("paths")
+		if len(paths) == 1 && paths[0] == "." && len(cfg.Paths) > 0 {
+			paths = cfg.Paths
+		}
+		tempRepo := repository.NewTaskRepository(paths)
+		parentTask, err := tempRepo.FindByID(newParent)
+		if err != nil {
+			return fmt.Errorf("parent task not found: %s", newParent)
+		}
+		
+		// Set parent ID
+		t.SetParentID(newParent)
+		
+		// Optionally inherit some properties from parent
+		if newStatus == "" && statusStr == "TODO" {
+			// Inherit parent's status if not specified
+			t.SetStatus(parentTask.GetStatus())
+		}
+		
+		fmt.Printf("Creating subtask of: %s\n", parentTask.Title)
 	}
 
 	paths, _ := cmd.Flags().GetStringSlice("paths")

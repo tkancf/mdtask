@@ -25,6 +25,7 @@ var (
 	listStatus   string
 	listArchived bool
 	listAll      bool
+	listParent   string
 )
 
 func init() {
@@ -32,6 +33,7 @@ func init() {
 	listCmd.Flags().StringVarP(&listStatus, "status", "s", "", "Filter by status (TODO, WIP, WAIT, SCHE, DONE)")
 	listCmd.Flags().BoolVarP(&listArchived, "archived", "a", false, "Show only archived tasks")
 	listCmd.Flags().BoolVar(&listAll, "all", false, "Show all tasks including archived")
+	listCmd.Flags().StringVar(&listParent, "parent", "", "Show only subtasks of the specified parent task ID")
 }
 
 func runList(cmd *cobra.Command, args []string) error {
@@ -49,7 +51,40 @@ func runList(cmd *cobra.Command, args []string) error {
 
 	var tasks []*task.Task
 
-	if listStatus != "" {
+	// Handle parent filter
+	if listParent != "" {
+		// Validate parent task ID format
+		if !strings.HasPrefix(listParent, "task/") {
+			// Try to add the prefix if it's missing
+			if _, err := time.Parse("20060102150405", listParent); err == nil {
+				listParent = "task/" + listParent
+			} else {
+				return fmt.Errorf("invalid parent task ID format: %s", listParent)
+			}
+		}
+		
+		// Get all tasks and filter by parent
+		allTasks, err := repo.FindAll()
+		if err != nil {
+			return err
+		}
+		
+		for _, t := range allTasks {
+			if t.GetParentID() == listParent {
+				// Apply additional filters if specified
+				if listStatus != "" && string(t.GetStatus()) != listStatus {
+					continue
+				}
+				if listArchived && !t.IsArchived() {
+					continue
+				}
+				if !listAll && !listArchived && t.IsArchived() {
+					continue
+				}
+				tasks = append(tasks, t)
+			}
+		}
+	} else if listStatus != "" {
 		status := task.Status(listStatus)
 		tasks, err = repo.FindByStatus(status)
 	} else if listArchived {
@@ -93,8 +128,8 @@ func printTasks(tasks []*task.Task) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	defer w.Flush()
 
-	fmt.Fprintln(w, "ID\tSTATUS\tTITLE\tDEADLINE\tARCHIVED")
-	fmt.Fprintln(w, strings.Repeat("-", 80))
+	fmt.Fprintln(w, "ID\tSTATUS\tTITLE\tDEADLINE\tPARENT\tARCHIVED")
+	fmt.Fprintln(w, strings.Repeat("-", 90))
 
 	for _, t := range tasks {
 		deadline := ""
@@ -109,12 +144,23 @@ func printTasks(tasks []*task.Task) {
 		if t.IsArchived() {
 			archived = "✓"
 		}
+		
+		parent := ""
+		if parentID := t.GetParentID(); parentID != "" {
+			// Show only the timestamp part for brevity
+			if strings.HasPrefix(parentID, "task/") {
+				parent = parentID[5:]
+			} else {
+				parent = parentID
+			}
+		}
 
-		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\n",
+		fmt.Fprintf(w, "%s\t%s\t%s\t%s\t%s\t%s\n",
 			t.ID,
 			t.GetStatus(),
 			truncate(t.Title, 40),
 			deadline,
+			parent,
 			archived,
 		)
 	}
@@ -140,6 +186,7 @@ type TaskJSON struct {
 	Reminder    *time.Time `json:"reminder,omitempty"`
 	IsArchived  bool      `json:"is_archived"`
 	Content     string    `json:"content,omitempty"`
+	ParentID    string    `json:"parent_id,omitempty"`
 }
 
 func printTasksJSON(tasks []*task.Task) error {
@@ -158,6 +205,7 @@ func printTasksJSON(tasks []*task.Task) error {
 			Reminder:    t.GetReminder(),
 			IsArchived:  t.IsArchived(),
 			Content:     t.Content,
+			ParentID:    t.GetParentID(),
 		}
 	}
 	

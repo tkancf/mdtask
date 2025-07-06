@@ -10,6 +10,7 @@ const (
 	DeadlineTagPrefix = "mdtask/deadline/"
 	WaitForTagPrefix  = "mdtask/waitfor/"
 	ReminderTagPrefix = "mdtask/reminder/"
+	ParentTagPrefix   = "mdtask/parent/"
 )
 
 // Status values
