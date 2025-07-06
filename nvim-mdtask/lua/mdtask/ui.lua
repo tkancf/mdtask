@@ -410,7 +410,7 @@ function M.show_task_list(tasks, title)
   
   -- Apply virtual text
   highlights.apply_deadline_virtual_text(buf, deadline_info)
-  highlights.apply_task_id_virtual_text(buf, task_id_info)
+  highlights.apply_task_id_virtual_text(buf, task_id_info, indicator_info)
   highlights.apply_indicator_virtual_text(buf, indicator_info)
   
   -- Only set these options for new buffers

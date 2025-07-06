@@ -111,35 +111,21 @@ function M.apply_deadline_virtual_text(buf, deadline_info)
   vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
 end
 
--- Apply virtual text for task IDs
-function M.apply_task_id_virtual_text(buf, task_id_info)
+-- Apply virtual text for task IDs with indicators
+function M.apply_task_id_virtual_text(buf, task_id_info, indicator_info)
   -- Create namespace for virtual text
   local ns_id = vim.api.nvim_create_namespace('mdtask_id')
   
   -- Clear existing virtual text
   vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
   
-  -- Apply virtual text for each task ID
+  -- Apply virtual text for each task ID, with indicators before the ID
   for line_num, task_id in pairs(task_id_info) do
-    vim.api.nvim_buf_set_extmark(buf, ns_id, line_num - 1, -1, {
-      virt_text = {{' {' .. task_id .. '}', 'MdTaskId'}},
-      virt_text_pos = 'eol',
-    })
-  end
-end
-
--- Apply virtual text for indicators
-function M.apply_indicator_virtual_text(buf, indicator_info)
-  -- Create namespace for virtual text
-  local ns_id = vim.api.nvim_create_namespace('mdtask_indicators')
-  
-  -- Clear existing virtual text
-  vim.api.nvim_buf_clear_namespace(buf, ns_id, 0, -1)
-  
-  -- Apply virtual text for each indicator
-  for line_num, indicators in pairs(indicator_info) do
-    if #indicators > 0 then
-      local virt_text = {}
+    local virt_text = {}
+    
+    -- Add indicators first if they exist for this line
+    local indicators = indicator_info[line_num]
+    if indicators and #indicators > 0 then
       for _, indicator in ipairs(indicators) do
         local highlight = 'MdTaskIndicator'
         if indicator == '[!]' then
@@ -153,13 +139,23 @@ function M.apply_indicator_virtual_text(buf, indicator_info)
         end
         table.insert(virt_text, {indicator .. ' ', highlight})
       end
-      
-      vim.api.nvim_buf_set_extmark(buf, ns_id, line_num - 1, 2, {
-        virt_text = virt_text,
-        virt_text_pos = 'inline',
-      })
     end
+    
+    -- Add task ID after indicators (with leading space)
+    local id_prefix = (#virt_text > 0) and '' or ' '
+    table.insert(virt_text, {id_prefix .. '{' .. task_id .. '}', 'MdTaskId'})
+    
+    vim.api.nvim_buf_set_extmark(buf, ns_id, line_num - 1, -1, {
+      virt_text = virt_text,
+      virt_text_pos = 'eol',
+    })
   end
+end
+
+-- Apply virtual text for indicators (deprecated - now handled in apply_task_id_virtual_text)
+function M.apply_indicator_virtual_text(buf, indicator_info)
+  -- This function is now deprecated and does nothing
+  -- Indicators are displayed with task IDs in apply_task_id_virtual_text
 end
 
 return M
