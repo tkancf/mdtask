@@ -3,6 +3,7 @@ local M = {}
 local utils = require('mdtask.utils')
 local config = require('mdtask.config')
 local highlights = require('mdtask.highlights')
+local stats = require('mdtask.stats')
 
 -- View modes
 M.view_modes = {
@@ -556,6 +557,11 @@ function M.show_task_list(tasks, title)
       end
     end, opts)
     
+    -- si to show statistics
+    vim.keymap.set('n', 'si', function()
+      M.show_stats(M.current_tasks)
+    end, opts)
+    
     -- ? to show help
     vim.keymap.set('n', '?', function()
       local help_text = [[
@@ -569,6 +575,7 @@ Navigation & View:
   s/      Search tasks
   sW      Open web interface
   sv      Toggle view (compact/detailed)
+  si      Show task statistics
   ?       Show this help
 
 Task Management:
@@ -928,6 +935,57 @@ function M.show_task_preview(task)
   vim.keymap.set('n', '<Esc>', function()
     vim.api.nvim_win_close(win, true)
   end, opts)
+end
+
+-- Show task statistics
+function M.show_stats(tasks)
+  local task_stats = stats.calculate_stats(tasks or M.current_tasks or {})
+  local lines = stats.format_stats(task_stats)
+  
+  -- Calculate window size
+  local width = 45
+  local height = #lines + 2
+  
+  -- Create floating window
+  local buf, win = utils.create_float_win({
+    width = width,
+    height = height,
+  })
+  
+  -- Set buffer content
+  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
+  vim.api.nvim_buf_set_option(buf, 'modifiable', false)
+  vim.api.nvim_buf_set_option(buf, 'buftype', 'nofile')
+  vim.api.nvim_buf_set_option(buf, 'bufhidden', 'wipe')
+  
+  -- Add highlighting
+  local ns_id = vim.api.nvim_create_namespace('mdtask_stats')
+  
+  -- Highlight headers
+  vim.api.nvim_buf_add_highlight(buf, ns_id, 'Title', 0, 0, -1)
+  vim.api.nvim_buf_add_highlight(buf, ns_id, 'Comment', 1, 0, -1)
+  
+  -- Highlight section headers
+  for i, line in ipairs(lines) do
+    if line:match('^%w+:$') then
+      vim.api.nvim_buf_add_highlight(buf, ns_id, 'Type', i-1, 0, -1)
+    elseif line:match('^Progress:') then
+      vim.api.nvim_buf_add_highlight(buf, ns_id, 'Type', i-1, 0, -1)
+    elseif line:match('█') then
+      -- Highlight progress bar
+      local start_pos = line:find('[')
+      local end_pos = line:find(']')
+      if start_pos and end_pos then
+        vim.api.nvim_buf_add_highlight(buf, ns_id, 'String', i-1, start_pos, end_pos+1)
+      end
+    end
+  end
+  
+  -- Close on any key
+  local opts = { buffer = buf, silent = true }
+  vim.keymap.set('n', '<Esc>', function() vim.api.nvim_win_close(win, true) end, opts)
+  vim.keymap.set('n', 'q', function() vim.api.nvim_win_close(win, true) end, opts)
+  vim.keymap.set('n', '<CR>', function() vim.api.nvim_win_close(win, true) end, opts)
 end
 
 return M
