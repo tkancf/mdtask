@@ -272,7 +272,7 @@ function M.show_task_list(tasks, title)
   local win_width = vim.api.nvim_win_get_width(win)
   table.insert(lines, string.rep('─', math.min(win_width - 2, 80)))
   local mode_indicator = M.current_view_mode == 'compact' and '[Compact]' or '[Detailed]'
-  table.insert(lines, 'Keys: <CR> open  s* commands  ? help  q quit  ' .. mode_indicator)
+  table.insert(lines, 'Keys: <CR> open  m* commands  ? help  q quit  ' .. mode_indicator)
   
   -- Set buffer content
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
@@ -364,73 +364,73 @@ function M.show_task_list(tasks, title)
       end
     end, opts)
   
-    -- sa to archive
-    vim.keymap.set('n', 'sa', function()
+    -- ma to archive
+    vim.keymap.set('n', 'ma', function()
       actions.quick_archive()
     end, opts)
     
-    vim.keymap.set('n', 'sr', function()
+    vim.keymap.set('n', 'mr', function()
       require('mdtask.tasks').list()
     end, opts)
     
-    -- sn to create new task
-    vim.keymap.set('n', 'sn', function()
+    -- mn to create new task
+    vim.keymap.set('n', 'mn', function()
       -- Don't close the window, just hide it temporarily
       require('mdtask.tasks').new()
     end, opts)
     
-    -- se to edit task
-    vim.keymap.set('n', 'se', function()
+    -- me to edit task
+    vim.keymap.set('n', 'me', function()
       local task_id = get_task_id_from_position()
       if task_id then
         require('mdtask.tasks').edit(task_id)
       end
     end, opts)
     
-    -- ss to toggle status
-    vim.keymap.set('n', 'ss', function()
+    -- ms to toggle status
+    vim.keymap.set('n', 'ms', function()
       actions.toggle_task_status()
     end, opts)
     
-    -- sp to preview
-    vim.keymap.set('n', 'sp', function()
+    -- mp to preview
+    vim.keymap.set('n', 'mp', function()
       actions.preview_task()
     end, opts)
     
-    -- sd to mark as DONE
-    vim.keymap.set('n', 'sd', function()
+    -- md to mark as DONE
+    vim.keymap.set('n', 'md', function()
       local task_id = get_task_id_from_position()
       if task_id then
         actions.quick_status_update(task_id, 'DONE')
       end
     end, opts)
     
-    -- st to mark as TODO
-    vim.keymap.set('n', 'st', function()
+    -- mt to mark as TODO
+    vim.keymap.set('n', 'mt', function()
       local task_id = get_task_id_from_position()
       if task_id then
         actions.quick_status_update(task_id, 'TODO')
       end
     end, opts)
     
-    -- sw to mark as WIP
-    vim.keymap.set('n', 'sw', function()
+    -- mw to mark as WIP
+    vim.keymap.set('n', 'mw', function()
       local task_id = get_task_id_from_position()
       if task_id then
         actions.quick_status_update(task_id, 'WIP')
       end
     end, opts)
     
-    -- sh to mark as SCHE (scheduled)
-    vim.keymap.set('n', 'sh', function()
+    -- mh to mark as SCHE (scheduled)
+    vim.keymap.set('n', 'mh', function()
       local task_id = get_task_id_from_position()
       if task_id then
         actions.quick_status_update(task_id, 'SCHE')
       end
     end, opts)
     
-    -- sz to mark as WAIT
-    vim.keymap.set('n', 'sz', function()
+    -- mz to mark as WAIT
+    vim.keymap.set('n', 'mz', function()
       local task_id = get_task_id_from_position()
       if task_id then
         actions.quick_status_update(task_id, 'WAIT')
@@ -438,32 +438,32 @@ function M.show_task_list(tasks, title)
     end, opts)
     
     -- Field-specific edits
-    -- sS to edit status (with selection dialog)
-    vim.keymap.set('n', 'sS', function()
+    -- mS to edit status (with selection dialog)
+    vim.keymap.set('n', 'mS', function()
       local task_id = get_task_id_from_position()
       if task_id then
         require('mdtask.tasks').edit_field(task_id, 'status')
       end
     end, opts)
     
-    -- sT to edit title
-    vim.keymap.set('n', 'sT', function()
+    -- mT to edit title
+    vim.keymap.set('n', 'mT', function()
       local task_id = get_task_id_from_position()
       if task_id then
         require('mdtask.tasks').edit_field(task_id, 'title')
       end
     end, opts)
     
-    -- sD to edit description
-    vim.keymap.set('n', 'sD', function()
+    -- mD to edit description
+    vim.keymap.set('n', 'mD', function()
       local task_id = get_task_id_from_position()
       if task_id then
         require('mdtask.tasks').edit_field(task_id, 'description')
       end
     end, opts)
     
-    -- s/ to search tasks
-    vim.keymap.set('n', 's/', function()
+    -- m/ to search tasks
+    vim.keymap.set('n', 'm/', function()
       vim.ui.input({ prompt = 'Search tasks: ' }, function(query)
         if query and query ~= '' then
           vim.api.nvim_win_close(win, true)
@@ -472,8 +472,8 @@ function M.show_task_list(tasks, title)
       end)
     end, opts)
     
-    -- sW to open web interface
-    vim.keymap.set('n', 'sW', function()
+    -- mW to open web interface
+    vim.keymap.set('n', 'mW', function()
       require('mdtask.tasks').open_web()
     end, opts)
     
@@ -571,30 +571,30 @@ function M.show_task_list(tasks, title)
     end, opts)
     
     -- Task operations
-    vim.keymap.set('n', 'sy', function()
+    vim.keymap.set('n', 'my', function()
       require('mdtask.tasks').copy_task()
     end, opts)
     
-    vim.keymap.set('n', 'sP', function()
+    vim.keymap.set('n', 'mP', function()
       require('mdtask.tasks').paste_task()
     end, opts)
     
-    vim.keymap.set('n', 'sdd', function()
+    vim.keymap.set('n', 'mdd', function()
       require('mdtask.tasks').delete_task()
     end, opts)
     
-    -- sN to create subtask
-    vim.keymap.set('n', 'sN', function()
+    -- mN to create subtask
+    vim.keymap.set('n', 'mN', function()
       require('mdtask.tasks').new_subtask()
     end, opts)
     
-    -- sL to list subtasks
-    vim.keymap.set('n', 'sL', function()
+    -- mL to list subtasks
+    vim.keymap.set('n', 'mL', function()
       require('mdtask.tasks').list_subtasks()
     end, opts)
     
-    -- sv to toggle view mode
-    vim.keymap.set('n', 'sv', function()
+    -- mv to toggle view mode
+    vim.keymap.set('n', 'mv', function()
       -- Toggle between compact and detailed view
       if M.current_view_mode == M.view_modes.compact then
         M.current_view_mode = M.view_modes.detailed
@@ -607,8 +607,8 @@ function M.show_task_list(tasks, title)
       end
     end, opts)
     
-    -- si to show statistics
-    vim.keymap.set('n', 'si', function()
+    -- mi to show statistics
+    vim.keymap.set('n', 'mi', function()
       M.show_stats(M.current_tasks)
     end, opts)
     
@@ -619,37 +619,37 @@ Task List Shortcuts:
 
 Navigation & View:
   <CR>    Open task file
-  sp      Preview task
+  mp      Preview task
   q       Quit
-  sr      Refresh list
-  s/      Search tasks
-  sW      Open web interface
-  sv      Toggle view (compact/detailed)
-  si      Show task statistics
+  mr      Refresh list
+  m/      Search tasks
+  mW      Open web interface
+  mv      Toggle view (compact/detailed)
+  mi      Show task statistics
   ?       Show this help
 
 Task Management:
-  sn      New task
-  sN      New subtask (for current task)
-  se      Edit task (full form)
-  sa      Archive task
-  sy      Copy task (without ID)
-  sP      Paste task (create new)
-  sdd     Delete task (with confirmation)
-  sL      List subtasks of current task
+  mn      New task
+  mN      New subtask (for current task)
+  me      Edit task (full form)
+  ma      Archive task
+  my      Copy task (without ID)
+  mP      Paste task (create new)
+  mdd     Delete task (with confirmation)
+  mL      List subtasks of current task
 
 Quick Status Change:
-  ss      Toggle status
-  st      Set TODO
-  sw      Set WIP (Work in Progress)
-  sz      Set WAIT
-  sh      Set SCHE (Scheduled)
-  sd      Set DONE
+  ms      Toggle status
+  mt      Set TODO
+  mw      Set WIP (Work in Progress)
+  mz      Set WAIT
+  mh      Set SCHE (Scheduled)
+  md      Set DONE
 
 Field-Specific Edit:
-  sS      Edit status (with dialog)
-  sT      Edit title
-  sD      Edit description
+  mS      Edit status (with dialog)
+  mT      Edit title
+  mD      Edit description
 
 Sorting:
   o       Sort menu
