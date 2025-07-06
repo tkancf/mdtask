@@ -1,7 +1,7 @@
 local M = {}
 
 -- Define highlight groups for mdtask
-function M.setup()
+local function define_highlights()
   -- Status highlights
   vim.api.nvim_set_hl(0, 'MdTaskStatusTodo', { fg = '#7aa2f7', bold = true, default = true })
   vim.api.nvim_set_hl(0, 'MdTaskStatusWip', { fg = '#9ece6a', bold = true, default = true })
@@ -32,8 +32,30 @@ function M.setup()
   vim.api.nvim_set_hl(0, 'MdTaskHelp', { fg = '#565f89', italic = true, default = true })
 end
 
+function M.setup()
+  -- Define highlights immediately
+  define_highlights()
+  
+  -- Re-define highlights when colorscheme changes
+  vim.api.nvim_create_autocmd('ColorScheme', {
+    pattern = '*',
+    callback = function()
+      -- Use vim.schedule to ensure this runs after colorscheme is fully loaded
+      vim.schedule(define_highlights)
+    end,
+    desc = 'Redefine mdtask highlight groups after colorscheme change'
+  })
+end
+
 -- Apply highlights to buffer
 function M.apply_highlights(buf)
+  -- Ensure highlight groups are defined before applying
+  -- This fixes issues when highlights aren't properly initialized
+  local test_hl = vim.api.nvim_get_hl(0, { name = 'MdTaskStatusTodo' })
+  if not test_hl or vim.tbl_isempty(test_hl) then
+    define_highlights()
+  end
+  
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
   
   for i, line in ipairs(lines) do

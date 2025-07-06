@@ -405,13 +405,21 @@ function M.show_task_list(tasks, title)
   -- Make buffer modifiable for direct editing
   vim.api.nvim_buf_set_option(buf, 'modifiable', true)
   
-  -- Apply syntax highlights
-  highlights.apply_highlights(buf)
+  -- Apply syntax highlights with delay to ensure stability
+  vim.schedule(function()
+    if vim.api.nvim_buf_is_valid(buf) then
+      highlights.apply_highlights(buf)
+    end
+  end)
   
-  -- Apply virtual text
-  highlights.apply_deadline_virtual_text(buf, deadline_info)
-  highlights.apply_task_id_virtual_text(buf, task_id_info, indicator_info)
-  highlights.apply_indicator_virtual_text(buf, indicator_info)
+  -- Apply virtual text with delay to ensure buffer is ready
+  vim.schedule(function()
+    if vim.api.nvim_buf_is_valid(buf) then
+      highlights.apply_deadline_virtual_text(buf, deadline_info)
+      highlights.apply_task_id_virtual_text(buf, task_id_info, indicator_info)
+      highlights.apply_indicator_virtual_text(buf, indicator_info)
+    end
+  end)
   
   -- Only set these options for new buffers
   if not reuse_window then
