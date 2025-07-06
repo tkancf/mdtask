@@ -10,6 +10,8 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/tkancf/mdtask/internal/repository"
 	"github.com/tkancf/mdtask/internal/task"
+	"github.com/tkancf/mdtask/internal/tui/components"
+	"github.com/tkancf/mdtask/internal/tui/views"
 )
 
 const (
@@ -17,13 +19,26 @@ const (
 	listWidth  = 80
 )
 
+type viewState int
+
+const (
+	listView viewState = iota
+	detailView
+	statusSelectView
+)
+
 type App struct {
-	repo     repository.Repository
-	list     list.Model
-	tasks    []*task.Task
-	width    int
-	height   int
-	quitting bool
+	repo           repository.Repository
+	list           list.Model
+	tasks          []*task.Task
+	detail         *views.DetailView
+	statusSelector *components.StatusSelector
+	selectedTask   *task.Task
+	viewState      viewState
+	width          int
+	height         int
+	quitting       bool
+	err            error
 }
 
 // taskItem implements list.Item interface
@@ -99,6 +114,18 @@ func NewApp(repo repository.Repository) *App {
 		key.WithKeys("q", "ctrl+c"),
 		key.WithHelp("q", "quit"),
 	)
+	l.AdditionalShortHelpKeys = func() []key.Binding {
+		return []key.Binding{
+			key.NewBinding(
+				key.WithKeys("enter", "v"),
+				key.WithHelp("enter/v", "view task"),
+			),
+			key.NewBinding(
+				key.WithKeys("s"),
+				key.WithHelp("s", "change status"),
+			),
+		}
+	}
 
 	return &App{
 		repo: repo,
@@ -115,15 +142,37 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		a.width = msg.Width
 		a.height = msg.Height
-		a.list.SetWidth(msg.Width)
-		a.list.SetHeight(msg.Height - 2)
+		
+		if a.viewState == listView {
+			a.list.SetWidth(msg.Width)
+			a.list.SetHeight(msg.Height - 2)
+		}
 		return a, nil
 
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "q", "ctrl+c":
-			a.quitting = true
-			return a, tea.Quit
+		switch a.viewState {
+		case listView:
+			switch msg.String() {
+			case "q", "ctrl+c":
+				a.quitting = true
+				return a, tea.Quit
+			case "enter", "v":
+				// Open task detail view
+				if i, ok := a.list.SelectedItem().(taskItem); ok {
+					a.detail = views.NewDetailView(i.task)
+					a.selectedTask = i.task
+					a.viewState = detailView
+					return a, a.detail.Init()
+				}
+			case "s":
+				// Open status selector
+				if i, ok := a.list.SelectedItem().(taskItem); ok {
+					a.selectedTask = i.task
+					a.statusSelector = components.NewStatusSelector(a.selectedTask.GetStatus())
+					a.viewState = statusSelectView
+					return a, a.statusSelector.Init()
+				}
+			}
 		}
 
 	case tasksLoadedMsg:
@@ -135,6 +184,32 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.list.SetItems(items)
 		return a, nil
 
+	case views.GoBackMsg:
+		a.viewState = listView
+		a.detail = nil
+		return a, nil
+
+	case components.StatusSelectedMsg:
+		if a.selectedTask != nil {
+			a.selectedTask.SetStatus(msg.Status)
+			a.viewState = listView
+			return a, a.updateTask(a.selectedTask)
+		}
+		return a, nil
+
+	case components.StatusCancelledMsg:
+		a.viewState = listView
+		a.statusSelector = nil
+		return a, nil
+
+	case taskUpdatedMsg:
+		if msg.err != nil {
+			a.err = msg.err
+			return a, nil
+		}
+		// Reload tasks to reflect changes
+		return a, a.loadTasks
+
 	case error:
 		// TODO: Better error handling
 		a.quitting = true
@@ -142,7 +217,20 @@ func (a *App) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	var cmd tea.Cmd
-	a.list, cmd = a.list.Update(msg)
+	
+	switch a.viewState {
+	case listView:
+		a.list, cmd = a.list.Update(msg)
+	case detailView:
+		if a.detail != nil {
+			a.detail, cmd = a.detail.Update(msg)
+		}
+	case statusSelectView:
+		if a.statusSelector != nil {
+			a.statusSelector, cmd = a.statusSelector.Update(msg)
+		}
+	}
+	
 	return a, cmd
 }
 
@@ -150,12 +238,34 @@ func (a *App) View() string {
 	if a.quitting {
 		return ""
 	}
+	
+	switch a.viewState {
+	case detailView:
+		if a.detail != nil {
+			return a.detail.View()
+		}
+	case statusSelectView:
+		if a.statusSelector != nil {
+			title := lipgloss.NewStyle().Bold(true).Padding(1, 2).Render("Select Status")
+			selector := lipgloss.NewStyle().Padding(1, 2).Render(a.statusSelector.View())
+			help := lipgloss.NewStyle().Foreground(lipgloss.Color("241")).Padding(1, 2).
+				Render("↑/k: up • ↓/j: down • enter: select • esc: cancel")
+			return lipgloss.JoinVertical(lipgloss.Left, title, selector, help)
+		}
+	case listView:
+		return a.list.View()
+	}
+	
 	return a.list.View()
 }
 
 // Messages
 type tasksLoadedMsg struct {
 	tasks []*task.Task
+}
+
+type taskUpdatedMsg struct {
+	err error
 }
 
 // Commands
@@ -165,6 +275,13 @@ func (a *App) loadTasks() tea.Msg {
 		return err
 	}
 	return tasksLoadedMsg{tasks: tasks}
+}
+
+func (a *App) updateTask(t *task.Task) tea.Cmd {
+	return func() tea.Msg {
+		err := a.repo.Update(t)
+		return taskUpdatedMsg{err: err}
+	}
 }
 
 func (a *App) Run() error {
