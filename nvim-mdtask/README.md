@@ -1,4 +1,4 @@
-# mdtask.nvim
+# nvim-mdtask
 
 A Neovim plugin for seamless integration with [mdtask](https://github.com/tkancf/mdtask), a task management tool that uses Markdown files as task tickets.
 
@@ -46,7 +46,7 @@ Or more simply, if you only want the Neovim plugin:
 ```lua
 {
   dir = '~/path/to/mdtask/nvim-mdtask',  -- Adjust path to your mdtask clone
-  name = 'mdtask.nvim',
+  name = 'nvim-mdtask',
   dependencies = {
     'nvim-telescope/telescope.nvim', -- optional
   },

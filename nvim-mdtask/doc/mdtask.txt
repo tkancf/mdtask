@@ -18,7 +18,7 @@ CONTENTS                                                      *mdtask-contents*
 ==============================================================================
 1. INTRODUCTION                                           *mdtask-introduction*
 
-mdtask.nvim is a Neovim plugin that provides seamless integration with mdtask,
+nvim-mdtask is a Neovim plugin that provides seamless integration with mdtask,
 a task management tool that uses Markdown files as task tickets.
 
 The plugin allows you to:
@@ -40,7 +40,7 @@ Requirements:
 
 Using lazy.nvim: >
     {
-      'tkancf/mdtask.nvim',
+      'tkancf/nvim-mdtask',
       dependencies = {
         'nvim-telescope/telescope.nvim', -- optional
       },
@@ -52,7 +52,7 @@ Using lazy.nvim: >
 
 Using packer.nvim: >
     use {
-      'tkancf/mdtask.nvim',
+      'tkancf/nvim-mdtask',
       requires = {
         'nvim-telescope/telescope.nvim', -- optional
       },

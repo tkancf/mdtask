@@ -184,7 +184,7 @@ mdtaskには、Neovimから直接タスクを管理できるプラグインが�
 ```lua
 {
   dir = '~/path/to/mdtask/nvim-mdtask',  -- mdtaskリポジトリのパスを指定
-  name = 'mdtask.nvim',
+  name = 'nvim-mdtask',
   dependencies = {
     'nvim-telescope/telescope.nvim', -- optional
   },
