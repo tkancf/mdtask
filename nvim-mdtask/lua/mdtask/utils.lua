@@ -199,6 +199,30 @@ function M.format_task(task, view_mode)
   return lines, deadline_status, id
 end
 
+-- Get task ID from current buffer file path
+function M.get_task_id_from_buffer()
+  local buf = vim.api.nvim_get_current_buf()
+  local file_path = vim.api.nvim_buf_get_name(buf)
+  
+  if not file_path or file_path == '' then
+    return nil
+  end
+  
+  -- Extract filename without extension
+  local filename = file_path:match('[^/]+$')
+  if not filename or not filename:match('%.md$') then
+    return nil
+  end
+  
+  -- Extract timestamp from filename (format: YYYYMMDDHHMMSS.md)
+  local timestamp = filename:match('^(%d%d%d%d%d%d%d%d%d%d%d%d%d%d)%.md$')
+  if timestamp then
+    return 'task/' .. timestamp
+  end
+  
+  return nil
+end
+
 -- Get task by ID
 function M.get_task_by_id(task_id, callback)
   if not task_id or task_id == '' then

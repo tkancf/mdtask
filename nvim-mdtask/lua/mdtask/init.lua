@@ -30,6 +30,11 @@ function M.setup(opts)
         end
       end,
       new = tasks.new,
+      subtask = function()
+        -- Create subtask for current task or specified parent
+        local parent_id = args[1]
+        tasks.new_subtask(parent_id)
+      end,
       search = function()
         tasks.search(table.concat(args, ' '))
       end,
@@ -67,6 +72,7 @@ Usage: :MdTask <subcommand> [args]
 Subcommands:
   list [status]    List tasks (optionally filtered by status)
   new              Create a new task
+  subtask [id]     Create a subtask for current task or specified parent
   search <query>   Search tasks
   edit <id>        Edit a task (full form)
   edit <field> [id] [value]  Edit specific field (status/title/description)
@@ -81,6 +87,8 @@ Examples:
   :MdTask list               List all tasks
   :MdTask list TODO          List TODO tasks
   :MdTask new                Create new task
+  :MdTask subtask            Create subtask for current task
+  :MdTask subtask task/123   Create subtask for specific task
   :MdTask search bug fix     Search for "bug fix"
   :MdTask edit task/123      Edit task (full form)
   :MdTask edit status        Edit status of current task
@@ -106,7 +114,7 @@ Examples:
       
       -- Complete subcommands
       if #parts == 2 then
-        local subcommands = {'list', 'new', 'search', 'edit', 'archive', 'web', 'toggle', 'preview', 'help'}
+        local subcommands = {'list', 'new', 'subtask', 'search', 'edit', 'archive', 'web', 'toggle', 'preview', 'help'}
         return vim.tbl_filter(function(cmd)
           return cmd:find('^' .. ArgLead)
         end, subcommands)
@@ -150,6 +158,7 @@ end
 -- Public API
 M.list = tasks.list
 M.new = tasks.new
+M.new_subtask = tasks.new_subtask
 M.search = tasks.search
 M.edit = tasks.edit
 M.archive = tasks.archive

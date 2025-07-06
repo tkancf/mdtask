@@ -577,8 +577,13 @@ end
 
 -- Create subtask
 function M.new_subtask(parent_id)
+  -- Save current buffer and cursor position before any operations
+  local original_buf = vim.api.nvim_get_current_buf()
+  local original_win = vim.api.nvim_get_current_win()
+  local original_cursor = vim.api.nvim_win_get_cursor(original_win)
+  
   if not parent_id or parent_id == '' then
-    -- Get parent task ID from current position
+    -- First try to get parent task ID from current position (task list buffer)
     local ui = require('mdtask.ui')
     local row = vim.api.nvim_win_get_cursor(0)[1]
     
@@ -590,8 +595,13 @@ function M.new_subtask(parent_id)
       end
     end
     
+    -- If not found in task list, try to get from current buffer file path
     if not parent_id then
-      utils.notify('No parent task found', vim.log.levels.ERROR)
+      parent_id = utils.get_task_id_from_buffer()
+    end
+    
+    if not parent_id then
+      utils.notify('No parent task found. Open a task file or use this command from the task list.', vim.log.levels.ERROR)
       return
     end
   end
@@ -605,7 +615,7 @@ function M.new_subtask(parent_id)
     
     -- Show task form for subtask
     ui.show_task_form(function(task_data)
-      local args = {'new', '--parent', parent_id}
+      local args = {'new', '--parent', parent_id, '--format', 'json'}
       
       -- Add title (required)
       if task_data.title and task_data.title ~= '' then
@@ -655,7 +665,37 @@ function M.new_subtask(parent_id)
           return
         end
         
+        -- Parse JSON response
+        local ok, task_data = pcall(vim.json.decode, output)
+        if not ok or not task_data then
+          utils.notify('Failed to parse subtask response', vim.log.levels.ERROR)
+          return
+        end
+        
         utils.notify(string.format('Subtask created for "%s"', parent_task.title))
+        
+        -- Insert markdown link at original cursor position
+        if task_data.title and task_data.file_path then
+          -- Switch back to original buffer and window
+          vim.api.nvim_set_current_win(original_win)
+          vim.api.nvim_set_current_buf(original_buf)
+          
+          -- Create markdown link
+          local link = string.format('[%s](%s)', task_data.title, task_data.file_path)
+          
+          -- Insert at cursor position
+          local row = original_cursor[1]
+          local col = original_cursor[2]
+          local lines = vim.api.nvim_buf_get_lines(original_buf, row - 1, row, false)
+          local line = lines[1] or ''
+          
+          -- Insert the link at cursor position
+          local new_line = line:sub(1, col) .. link .. line:sub(col + 1)
+          vim.api.nvim_buf_set_lines(original_buf, row - 1, row, false, {new_line})
+          
+          -- Move cursor after the inserted link
+          vim.api.nvim_win_set_cursor(original_win, {row, col + #link})
+        end
         
         -- Refresh task list if it's open
         if ui.task_list_buf and vim.api.nvim_buf_is_valid(ui.task_list_buf) then
