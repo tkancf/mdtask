@@ -63,15 +63,20 @@ function M.execute_mdtask(args, callback, stdin_input, skip_json)
         end
       end,
       on_exit = function(_, code)
+        print("DEBUG: Job exited with code:", code)
         local stdout_output = table.concat(stdout_data, '\n')
         local stderr_output = table.concat(stderr_data, '\n')
+        print("DEBUG: stdout:", stdout_output)
+        print("DEBUG: stderr:", stderr_output)
         
         -- For mdtask new command, success is determined by exit code
         -- Even if there's stderr output (like interactive prompts), it might still succeed
         if code == 0 then
+          print("DEBUG: Calling success callback")
           callback(nil, stdout_output)
         else
           -- Command failed
+          print("DEBUG: Calling error callback")
           local error_msg = stderr_output
           if error_msg == '' then
             error_msg = 'Command failed with exit code: ' .. code
