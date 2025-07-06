@@ -579,25 +579,48 @@ Sorting:
 Direct Editing:
   :w      Save changes (edit mode)
 ]]
-      -- Create a floating window for help
+      -- Create help buffer and window on the right side
       local help_buf = vim.api.nvim_create_buf(false, true)
       vim.api.nvim_buf_set_lines(help_buf, 0, -1, false, vim.split(help_text, '\n'))
       vim.api.nvim_buf_set_option(help_buf, 'modifiable', false)
+      vim.api.nvim_buf_set_option(help_buf, 'buftype', 'nofile')
+      vim.api.nvim_buf_set_option(help_buf, 'swapfile', false)
+      vim.api.nvim_buf_set_option(help_buf, 'bufhidden', 'delete')
       
-      local help_win = vim.api.nvim_open_win(help_buf, true, {
-        relative = 'editor',
-        width = 50,
-        height = 30,
-        row = 5,
-        col = 10,
-        border = 'rounded',
-        style = 'minimal',
-      })
+      -- Save current window
+      local current_win = vim.api.nvim_get_current_win()
       
-      -- Close help with any key
-      vim.api.nvim_buf_set_keymap(help_buf, 'n', '<Esc>', ':close<CR>', { silent = true })
-      vim.api.nvim_buf_set_keymap(help_buf, 'n', 'q', ':close<CR>', { silent = true })
-      vim.api.nvim_buf_set_keymap(help_buf, 'n', '?', ':close<CR>', { silent = true })
+      -- Create vertical split on the right
+      vim.cmd('vsplit')
+      vim.cmd('wincmd L')  -- Move to the right
+      
+      -- Set buffer in the new window
+      vim.api.nvim_win_set_buf(0, help_buf)
+      
+      -- Set window width (about 1/3 of screen)
+      local width = math.floor(vim.o.columns * 0.35)
+      vim.api.nvim_win_set_width(0, width)
+      
+      -- Set window options
+      vim.api.nvim_win_set_option(0, 'number', false)
+      vim.api.nvim_win_set_option(0, 'relativenumber', false)
+      vim.api.nvim_win_set_option(0, 'cursorline', true)
+      vim.api.nvim_win_set_option(0, 'wrap', false)
+      
+      -- Keymaps for closing help
+      local help_opts = { buffer = help_buf, silent = true }
+      vim.keymap.set('n', 'q', function()
+        vim.api.nvim_win_close(0, true)
+        vim.api.nvim_set_current_win(current_win)
+      end, help_opts)
+      vim.keymap.set('n', '<Esc>', function()
+        vim.api.nvim_win_close(0, true)
+        vim.api.nvim_set_current_win(current_win)
+      end, help_opts)
+      vim.keymap.set('n', '?', function()
+        vim.api.nvim_win_close(0, true)
+        vim.api.nvim_set_current_win(current_win)
+      end, help_opts)
     end, opts)
   end  -- end of if not reuse_window
   
