@@ -231,7 +231,7 @@ function M.show_task_list(tasks, title)
   local win_width = vim.api.nvim_win_get_width(win)
   table.insert(lines, string.rep('─', math.min(win_width - 2, 80)))
   local mode_indicator = M.current_view_mode == 'compact' and '[Compact]' or '[Detailed]'
-  table.insert(lines, 'Keys: <CR> open  o sort  / search  ? help  s* status/edit  v toggle view  q quit  ' .. mode_indicator)
+  table.insert(lines, 'Keys: <CR> open  s* commands  ? help  q quit  ' .. mode_indicator)
   
   -- Set buffer content
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
@@ -328,7 +328,7 @@ function M.show_task_list(tasks, title)
       actions.quick_archive()
     end, opts)
     
-    vim.keymap.set('n', 'r', function()
+    vim.keymap.set('n', 'sr', function()
       require('mdtask.tasks').list()
     end, opts)
     
@@ -421,8 +421,8 @@ function M.show_task_list(tasks, title)
       end
     end, opts)
     
-    -- / to search tasks
-    vim.keymap.set('n', '/', function()
+    -- s/ to search tasks
+    vim.keymap.set('n', 's/', function()
       vim.ui.input({ prompt = 'Search tasks: ' }, function(query)
         if query and query ~= '' then
           vim.api.nvim_win_close(win, true)
@@ -431,14 +431,14 @@ function M.show_task_list(tasks, title)
       end)
     end, opts)
     
-    -- W to open web interface
-    vim.keymap.set('n', 'W', function()
+    -- sW to open web interface
+    vim.keymap.set('n', 'sW', function()
       require('mdtask.tasks').open_web()
     end, opts)
     
     -- Sort commands
-    -- o to show sort menu
-    vim.keymap.set('n', 'o', function()
+    -- so to show sort menu
+    vim.keymap.set('n', 'so', function()
       local sort_options = {
         'default - Default order',
         'created_asc - Created (oldest first)',
@@ -469,7 +469,7 @@ function M.show_task_list(tasks, title)
     end, opts)
     
     -- Quick sort shortcuts
-    vim.keymap.set('n', 'oc', function()
+    vim.keymap.set('n', 'soc', function()
       -- Toggle between created asc/desc
       if M.current_sort == 'created_desc' then
         M.current_sort = 'created_asc'
@@ -481,7 +481,7 @@ function M.show_task_list(tasks, title)
       end
     end, opts)
     
-    vim.keymap.set('n', 'ou', function()
+    vim.keymap.set('n', 'sou', function()
       -- Toggle between updated asc/desc
       if M.current_sort == 'updated_desc' then
         M.current_sort = 'updated_asc'
@@ -493,7 +493,7 @@ function M.show_task_list(tasks, title)
       end
     end, opts)
     
-    vim.keymap.set('n', 'ot', function()
+    vim.keymap.set('n', 'sot', function()
       -- Toggle between title asc/desc
       if M.current_sort == 'title_asc' then
         M.current_sort = 'title_desc'
@@ -505,7 +505,7 @@ function M.show_task_list(tasks, title)
       end
     end, opts)
     
-    vim.keymap.set('n', 'os', function()
+    vim.keymap.set('n', 'sos', function()
       -- Sort by status
       M.current_sort = 'status'
       if M.current_tasks then
@@ -513,7 +513,7 @@ function M.show_task_list(tasks, title)
       end
     end, opts)
     
-    vim.keymap.set('n', 'od', function()
+    vim.keymap.set('n', 'sod', function()
       -- Sort by deadline
       M.current_sort = 'deadline'
       if M.current_tasks then
@@ -521,7 +521,7 @@ function M.show_task_list(tasks, title)
       end
     end, opts)
     
-    vim.keymap.set('n', 'oO', function()
+    vim.keymap.set('n', 'soO', function()
       -- Reset to default order
       M.current_sort = 'default'
       if M.current_tasks then
@@ -530,20 +530,20 @@ function M.show_task_list(tasks, title)
     end, opts)
     
     -- Task operations
-    vim.keymap.set('n', 'yy', function()
+    vim.keymap.set('n', 'sy', function()
       require('mdtask.tasks').copy_task()
     end, opts)
     
-    vim.keymap.set('n', 'p', function()
+    vim.keymap.set('n', 'sP', function()
       require('mdtask.tasks').paste_task()
     end, opts)
     
-    vim.keymap.set('n', 'dd', function()
+    vim.keymap.set('n', 'sdd', function()
       require('mdtask.tasks').delete_task()
     end, opts)
     
-    -- v to toggle view mode
-    vim.keymap.set('n', 'v', function()
+    -- sv to toggle view mode
+    vim.keymap.set('n', 'sv', function()
       -- Toggle between compact and detailed view
       if M.current_view_mode == M.view_modes.compact then
         M.current_view_mode = M.view_modes.detailed
@@ -565,19 +565,19 @@ Navigation & View:
   <CR>    Open task file
   sp      Preview task
   q       Quit
-  r       Refresh list
-  /       Search tasks
-  W       Open web interface
-  v       Toggle view (compact/detailed)
+  sr      Refresh list
+  s/      Search tasks
+  sW      Open web interface
+  sv      Toggle view (compact/detailed)
   ?       Show this help
 
 Task Management:
   sn      New task
   se      Edit task (full form)
   sa      Archive task
-  yy      Copy task (without ID)
-  p       Paste task (create new)
-  dd      Delete task (with confirmation)
+  sy      Copy task (without ID)
+  sP      Paste task (create new)
+  sdd     Delete task (with confirmation)
 
 Quick Status Change:
   ss      Toggle status
@@ -593,13 +593,13 @@ Field-Specific Edit:
   sD      Edit description
 
 Sorting:
-  o       Sort menu
-  oc      Sort by created date (toggle)
-  ou      Sort by updated date (toggle)
-  ot      Sort by title (toggle)
-  os      Sort by status
-  od      Sort by deadline
-  oO      Reset to default order
+  so      Sort menu
+  soc     Sort by created date (toggle)
+  sou     Sort by updated date (toggle)
+  sot     Sort by title (toggle)
+  sos     Sort by status
+  sod     Sort by deadline
+  soO     Reset to default order
 
 Direct Editing:
   :w      Save changes (edit mode)
