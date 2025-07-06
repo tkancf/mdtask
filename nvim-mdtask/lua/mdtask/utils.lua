@@ -126,12 +126,13 @@ function M.parse_json(json_str)
   return result
 end
 
--- Format task for display
-function M.format_task(task)
+-- Format task for display with view mode support
+function M.format_task(task, view_mode)
   local status = task.status or 'TODO'
   local title = task.title or 'Untitled'
   local id = task.id or ''
   local description = task.description
+  view_mode = view_mode or 'detailed'
   
   -- Debug: check task structure
   -- vim.notify('Task ID: ' .. tostring(task.id) .. ', Status: ' .. tostring(task.status), vim.log.levels.INFO)
@@ -162,6 +163,12 @@ function M.format_task(task)
   local main_line = string.format('- %s: %s', status, title)
   table.insert(lines, main_line)
   
+  -- Compact mode: only show main line
+  if view_mode == 'compact' then
+    return lines, deadline_status, id
+  end
+  
+  -- Detailed mode: show all information
   -- Add markdown link as second line if file path exists
   if file_path ~= '' then
     table.insert(lines, string.format('    - [%s](%s)', title, file_path))

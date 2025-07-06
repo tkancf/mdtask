@@ -4,6 +4,15 @@ local utils = require('mdtask.utils')
 local config = require('mdtask.config')
 local highlights = require('mdtask.highlights')
 
+-- View modes
+M.view_modes = {
+  compact = 'compact',
+  detailed = 'detailed'
+}
+
+-- Current view mode (default to detailed)
+M.current_view_mode = M.view_modes.detailed
+
 -- Sort functions
 local sort_functions = {
   default = function(tasks)
@@ -189,7 +198,7 @@ function M.show_task_list(tasks, title)
   M.line_to_task_id = {}  -- Reset line to task ID mapping
   
   for _, task in ipairs(tasks) do
-    local task_lines, deadline_status, task_id = utils.format_task(task)
+    local task_lines, deadline_status, task_id = utils.format_task(task, M.current_view_mode)
     
     local main_line_num = #lines + 1  -- Line number for the main task line
     
@@ -221,7 +230,8 @@ function M.show_task_list(tasks, title)
   -- Add help text at the bottom
   local win_width = vim.api.nvim_win_get_width(win)
   table.insert(lines, string.rep('─', math.min(win_width - 2, 80)))
-  table.insert(lines, 'Keys: <CR> open  o sort  / search  ? help  s* status/edit  q quit')
+  local mode_indicator = M.current_view_mode == 'compact' and '[Compact]' or '[Detailed]'
+  table.insert(lines, 'Keys: <CR> open  o sort  / search  ? help  s* status/edit  v toggle view  q quit  ' .. mode_indicator)
   
   -- Set buffer content
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
@@ -532,6 +542,20 @@ function M.show_task_list(tasks, title)
       require('mdtask.tasks').delete_task()
     end, opts)
     
+    -- v to toggle view mode
+    vim.keymap.set('n', 'v', function()
+      -- Toggle between compact and detailed view
+      if M.current_view_mode == M.view_modes.compact then
+        M.current_view_mode = M.view_modes.detailed
+      else
+        M.current_view_mode = M.view_modes.compact
+      end
+      -- Refresh the display
+      if M.current_tasks then
+        M.show_task_list(M.current_tasks)
+      end
+    end, opts)
+    
     -- ? to show help
     vim.keymap.set('n', '?', function()
       local help_text = [[
@@ -544,6 +568,7 @@ Navigation & View:
   r       Refresh list
   /       Search tasks
   W       Open web interface
+  v       Toggle view (compact/detailed)
   ?       Show this help
 
 Task Management:
