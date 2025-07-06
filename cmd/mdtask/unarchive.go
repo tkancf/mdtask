@@ -10,19 +10,19 @@ import (
 	"github.com/tkancf/mdtask/internal/service"
 )
 
-var archiveCmd = &cobra.Command{
-	Use:   "archive [task-id]",
-	Short: "Archive a task",
-	Long:  `Archive a task by adding the mdtask/archived tag.`,
+var unarchiveCmd = &cobra.Command{
+	Use:   "unarchive [task-id]",
+	Short: "Unarchive a task",
+	Long:  `Unarchive a task by removing the mdtask/archived tag.`,
 	Args:  cobra.ExactArgs(1),
-	RunE:  runArchive,
+	RunE:  runUnarchive,
 }
 
 func init() {
-	rootCmd.AddCommand(archiveCmd)
+	rootCmd.AddCommand(unarchiveCmd)
 }
 
-func runArchive(cmd *cobra.Command, args []string) error {
+func runUnarchive(cmd *cobra.Command, args []string) error {
 	ctx, err := cli.LoadContext(cmd)
 	if err != nil {
 		return err
@@ -35,7 +35,7 @@ func runArchive(cmd *cobra.Command, args []string) error {
 	
 	// Use service layer for business logic
 	taskService := service.NewTaskService(ctx.Repo, ctx.Config)
-	t, err := taskService.ArchiveTask(taskID)
+	t, err := taskService.UnarchiveTask(taskID)
 	if err != nil {
 		return err
 	}
@@ -45,6 +45,6 @@ func runArchive(cmd *cobra.Command, args []string) error {
 		return printer.PrintTask(t)
 	}
 	
-	fmt.Printf("Task %s archived successfully.\n", taskID)
+	fmt.Printf("Task %s unarchived successfully.\n", taskID)
 	return nil
 }

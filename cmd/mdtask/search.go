@@ -1,14 +1,14 @@
 package mdtask
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/tkancf/mdtask/internal/repository"
+	"github.com/tkancf/mdtask/internal/cli"
+	"github.com/tkancf/mdtask/internal/output"
 	"github.com/tkancf/mdtask/internal/task"
 )
 
@@ -51,8 +51,10 @@ func init() {
 }
 
 func runSearch(cmd *cobra.Command, args []string) error {
-	paths, _ := cmd.Flags().GetStringSlice("paths")
-	repo := repository.NewTaskRepository(paths)
+	ctx, err := cli.LoadContext(cmd)
+	if err != nil {
+		return err
+	}
 
 	var tasks []*task.Task
 	var err error
@@ -64,7 +66,7 @@ func runSearch(cmd *cobra.Command, args []string) error {
 			excludeTags = append(excludeTags, "mdtask/archived")
 		}
 		
-		tasks, err = repo.SearchByTags(searchTags, excludeTags, searchOrMode)
+		tasks, err = ctx.Repo.SearchByTags(searchTags, excludeTags, searchOrMode)
 		if err != nil {
 			return fmt.Errorf("failed to search by tags: %w", err)
 		}
@@ -85,7 +87,7 @@ func runSearch(cmd *cobra.Command, args []string) error {
 	} else if len(args) > 0 {
 		// Text search only
 		query := strings.Join(args, " ")
-		tasks, err = repo.Search(query)
+		tasks, err = ctx.Repo.Search(query)
 		if err != nil {
 			return fmt.Errorf("failed to search: %w", err)
 		}
@@ -106,19 +108,19 @@ func runSearch(cmd *cobra.Command, args []string) error {
 		return nil
 	}
 
-	// Display results
-	if len(tasks) == 0 {
-		if outputFormat == "json" {
-			fmt.Println("[]")
-		} else {
-			fmt.Println("No tasks found matching your criteria")
-		}
-		return nil
-	}
-
 	// JSON output
 	if outputFormat == "json" {
-		return printSearchResultsJSON(tasks)
+		printer := output.NewJSONPrinter(os.Stdout)
+		if len(tasks) == 0 {
+			return printer.PrintEmpty()
+		}
+		return printer.PrintTasks(tasks)
+	}
+	
+	// Display results
+	if len(tasks) == 0 {
+		fmt.Println("No tasks found matching your criteria")
+		return nil
 	}
 
 	// Text output
@@ -185,39 +187,3 @@ func runSearch(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// SearchResultJSON represents search results in JSON format
-type SearchResultJSON struct {
-	ID          string     `json:"id"`
-	Title       string     `json:"title"`
-	Description string     `json:"description"`
-	Status      string     `json:"status"`
-	Tags        []string   `json:"tags"`
-	Created     time.Time  `json:"created"`
-	Updated     time.Time  `json:"updated"`
-	Deadline    *time.Time `json:"deadline,omitempty"`
-	Reminder    *time.Time `json:"reminder,omitempty"`
-	IsArchived  bool       `json:"is_archived"`
-}
-
-func printSearchResultsJSON(tasks []*task.Task) error {
-	results := make([]SearchResultJSON, len(tasks))
-	
-	for i, t := range tasks {
-		results[i] = SearchResultJSON{
-			ID:          t.ID,
-			Title:       t.Title,
-			Description: t.Description,
-			Status:      string(t.GetStatus()),
-			Tags:        t.Tags,
-			Created:     t.Created,
-			Updated:     t.Updated,
-			Deadline:    t.GetDeadline(),
-			Reminder:    t.GetReminder(),
-			IsArchived:  t.IsArchived(),
-		}
-	}
-	
-	encoder := json.NewEncoder(os.Stdout)
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(results)
-}
