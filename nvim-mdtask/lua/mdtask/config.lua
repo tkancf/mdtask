@@ -2,11 +2,16 @@ local M = {}
 
 -- Function to find mdtask binary
 local function find_mdtask_binary()
-  -- First try current working directory
+  -- First try current working directory (prefer local development version)
   local cwd = vim.fn.getcwd()
   local local_binary = cwd .. '/mdtask'
   if vim.fn.executable(local_binary) == 1 then
     return local_binary
+  end
+  
+  -- Try relative path
+  if vim.fn.executable('./mdtask') == 1 then
+    return './mdtask'
   end
   
   -- Fall back to system PATH
