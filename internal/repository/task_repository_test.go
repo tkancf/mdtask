@@ -3,7 +3,6 @@ package repository
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"testing"
 	"time"
 
@@ -535,6 +534,8 @@ func TestTaskRepository_FilenameSuffix(t *testing.T) {
 	if filePath1 == filePath2 {
 		t.Error("expected different file paths for tasks with same timestamp")
 	}
+	
+	_ = filePath1 // Mark as used to avoid unused variable error
 
 	// Verify second task has suffix in ID
 	if task2.ID == task1.ID {

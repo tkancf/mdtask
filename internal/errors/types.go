@@ -18,6 +18,10 @@ const (
 	ErrDuplicate
 	// ErrPermission indicates a permission error
 	ErrPermission
+	// ErrValidation indicates a validation error
+	ErrValidation
+	// ErrConflict indicates a conflict error
+	ErrConflict
 )
 
 // AppError represents an application error with type information
@@ -118,4 +122,32 @@ func IsDuplicate(err error) bool {
 func IsPermission(err error) bool {
 	e, ok := err.(*AppError)
 	return ok && e.Type == ErrPermission
+}
+
+// ValidationError creates a validation error
+func ValidationError(field string, message string) error {
+	return &AppError{
+		Type:    ErrValidation,
+		Message: fmt.Sprintf("validation error for %s: %s", field, message),
+	}
+}
+
+// ConflictError creates a conflict error
+func ConflictError(resource string, message string) error {
+	return &AppError{
+		Type:    ErrConflict,
+		Message: fmt.Sprintf("conflict with %s: %s", resource, message),
+	}
+}
+
+// IsValidation checks if an error is a validation error
+func IsValidation(err error) bool {
+	e, ok := err.(*AppError)
+	return ok && e.Type == ErrValidation
+}
+
+// IsConflict checks if an error is a conflict error
+func IsConflict(err error) bool {
+	e, ok := err.(*AppError)
+	return ok && e.Type == ErrConflict
 }

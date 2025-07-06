@@ -90,6 +90,16 @@ func (t *Task) Archive() {
 	}
 }
 
+func (t *Task) Unarchive() {
+	var newTags []string
+	for _, tag := range t.Tags {
+		if tag != constants.ArchivedTag {
+			newTags = append(newTags, tag)
+		}
+	}
+	t.Tags = newTags
+}
+
 func (t *Task) GetDeadline() *time.Time {
 	if value, ok := t.getTagWithPrefix(constants.DeadlineTagPrefix); ok {
 		if deadline, err := time.Parse(constants.DateFormat, value); err == nil {
