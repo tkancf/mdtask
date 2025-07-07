@@ -82,12 +82,8 @@ func runNew(cmd *cobra.Command, args []string) error {
 		if ctx.Config.Task.DescriptionTemplate != "" {
 			newDescription = ctx.Config.Task.DescriptionTemplate
 		} else {
-			fmt.Print("Description: ")
-			desc, err := reader.ReadString('\n')
-			if err != nil {
-				return err
-			}
-			newDescription = strings.TrimSpace(desc)
+			// Default to empty string instead of prompting
+			newDescription = ""
 		}
 	}
 	// If description flag was provided (including empty string), use as-is
