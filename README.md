@@ -1,10 +1,10 @@
 # mdtask
 
-- mdtaskはMarkdownファイルをタスク管理のチケットとして扱うためのツール
+- mdtask is a tool for managing Markdown files as task management tickets
 
-## Markdownファイル フォーマット
+## Markdown File Format
 
-タスク管理のチケットとして扱うMarkdownファイルはYAML frontmatterを持ち、tagsに mdtask タグを持つ
+Markdown files used as task management tickets have YAML frontmatter and include the mdtask tag in tags
 
 ```yaml
 ---
@@ -23,127 +23,127 @@ updated: YYYY-MM-DD HH:MM
 ```
 
 - unique-identifier = task/YYYYMMDDHHMMSS
-- YYYYMMDDHHMMSS はファイル作成日時分秒
+- YYYYMMDDHHMMSS is the file creation date and time
 
-### タスクの管理
+### Task Management
 
-タスクのステータス、管理対象か否かの判断には、YAML frontmatterのtagsを利用する
+Task status and management scope are determined using tags in the YAML frontmatter
 
-- mdtaskタグを持つ場合
-    - mdtaskの管理対象
-- タスクのステータスは `mdtsk/status/***` で管理する
-    - TODOステータス: mdtask/status/TODO
-    - 進行中ステータス: mdtask/status/WIP
-    - 相手ボールの対応を待っているステータス: mdtask/status/WAIT
-    - スケジュール済みでその時間を待っているステータス: mdtask/status/SCHE
-    - 完了ステータス: mdtask/status/DONE
-- タスクのアーカイブは `mdtask/archived` で管理する
-    - アーカイブ済みタスク: mdtask/archived
-- タスクの期日は `mdtask/deadline/YYYY-MM-DD` で管理する
-    - 2025/06/29期日のタスク: mdtask/deadline/2025-06-29
-- 待ちステータス(`mdtask/status/WAIT`)の理由は `mdtask/waitfor/****` で管理する
-    - 相手のメール返信待ちのタスク `mdtask/waitfor/メール返信待ち`
+- If the file has the mdtask tag
+    - It is managed by mdtask
+- Task status is managed with `mdtsk/status/***`
+    - TODO status: mdtask/status/TODO
+    - Work in progress status: mdtask/status/WIP
+    - Waiting for response status: mdtask/status/WAIT
+    - Scheduled and waiting status: mdtask/status/SCHE
+    - Completed status: mdtask/status/DONE
+- Task archiving is managed with `mdtask/archived`
+    - Archived task: mdtask/archived
+- Task deadlines are managed with `mdtask/deadline/YYYY-MM-DD`
+    - Task with deadline 2025/06/29: mdtask/deadline/2025-06-29
+- Reasons for waiting status (`mdtask/status/WAIT`) are managed with `mdtask/waitfor/****`
+    - Task waiting for email reply: `mdtask/waitfor/waiting-for-email-reply`
 
-## mdtaskの機能
+## mdtask Features
 
-- 上記フォーマットのMarkdownファイルを管理、作成できる
-- Go言語で実装
-- mdtaskはCLIインターフェイスを提供する
-    - `mdtask list` - タスクの一覧（--status, --archived, --allオプション付き）
-    - `mdtask search [query]` - タスクの検索
-    - `mdtask new` - タスクの作成（対話的またはフラグ指定）
-    - `mdtask edit [task-id]` - タスクの編集（エディタ起動）
-    - `mdtask archive [task-id]` - タスクのアーカイブ
-    - `mdtask tui` - ターミナルUIの起動（インタラクティブなタスク管理）
-- mdtaskはWebブラウザインターフェイスを提供する
-    - `mdtask web` - WebUIの起動（デフォルトポート: 7000、自動ポート切替機能付き）
-    - ダッシュボード、タスク管理、検索機能を含む直感的なUI
-- mdtaskはMCP (Model Context Protocol) サーバーを提供する
-    - `mdtask mcp` - MCPサーバーの起動（AI assistants向け）
-    - Claude DesktopなどのMCP対応ツールからタスクを管理可能
-- mdtaskの設定
-    - TOML形式の設定ファイルをサポート（.mdtask.toml、mdtask.toml、~/.config/mdtask/config.toml、~/.mdtask.toml）
-    - 設定可能な項目：
-        - `paths` - 管理対象ディレクトリの指定
-        - `task.title_prefix` - タスクタイトルに自動付与するプレフィックス
-        - `task.default_status` - 新規タスクのデフォルトステータス
-        - `web.port` - WebUIのデフォルトポート番号
-        - `web.open_browser` - WebUI起動時のブラウザ自動起動設定
-        - `mcp.enabled` - MCPサーバーの有効/無効
-        - `mcp.allowed_paths` - MCPサーバーがアクセス可能な追加パス
-        - `editor.command` - タスク編集用エディタコマンド（未設定時は$EDITORを使用）
-        - `editor.args` - エディタに渡す追加引数
+- Manages and creates Markdown files in the above format
+- Implemented in Go
+- mdtask provides a CLI interface
+    - `mdtask list` - List tasks (with --status, --archived, --all options)
+    - `mdtask search [query]` - Search tasks
+    - `mdtask new` - Create a new task (interactive or with flags)
+    - `mdtask edit [task-id]` - Edit a task (launches editor)
+    - `mdtask archive [task-id]` - Archive a task
+    - `mdtask tui` - Launch terminal UI (interactive task management)
+- mdtask provides a web browser interface
+    - `mdtask web` - Launch WebUI (default port: 7000, with automatic port switching)
+    - Intuitive UI including dashboard, task management, and search functionality
+- mdtask provides an MCP (Model Context Protocol) server
+    - `mdtask mcp` - Launch MCP server (for AI assistants)
+    - Manage tasks from MCP-compatible tools like Claude Desktop
+- mdtask configuration
+    - Supports TOML configuration files (.mdtask.toml, mdtask.toml, ~/.config/mdtask/config.toml, ~/.mdtask.toml)
+    - Configurable options:
+        - `paths` - Specify managed directories
+        - `task.title_prefix` - Prefix automatically added to task titles
+        - `task.default_status` - Default status for new tasks
+        - `web.port` - Default port number for WebUI
+        - `web.open_browser` - Auto-launch browser when starting WebUI
+        - `mcp.enabled` - Enable/disable MCP server
+        - `mcp.allowed_paths` - Additional paths accessible by MCP server
+        - `editor.command` - Editor command for task editing (uses $EDITOR if not set)
+        - `editor.args` - Additional arguments to pass to the editor
 
-## インストール
+## Installation
 
-### 前提条件
+### Prerequisites
 
-- Go 1.19以上
-- Node.js 16以上（WebUIのスタイルとJavaScript生成用）
+- Go 1.19 or higher
+- Node.js 16 or higher (for WebUI style and JavaScript generation)
 
-### ソースからビルド
+### Build from Source
 
 ```bash
 git clone https://github.com/tkancf/mdtask.git
 cd mdtask
 
-# 依存関係のインストールとビルド
+# Install dependencies and build
 make
 
-# または個別に実行
+# Or run individually
 npm install
 npm run build
 go build -o mdtask
 ```
 
-### Makefileターゲット
+### Makefile Targets
 
-- `make` - 依存関係のインストール、CSS/JavaScript生成、バイナリビルド
-- `make build` - バイナリのビルド（CSS/JavaScript生成含む）
-- `make css` - CSSのみビルド
-- `make js` - JavaScriptのみビルド（TypeScriptのコンパイル）
-- `make watch` - CSS変更の監視（開発用）
-- `make test` - テストの実行
-- `make release` - 全プラットフォーム向けリリースビルド
-- `make clean` - ビルド成果物のクリーン
-- `make install` - ローカルインストール（/usr/local/bin）
+- `make` - Install dependencies, generate CSS/JavaScript, build binary
+- `make build` - Build binary (including CSS/JavaScript generation)
+- `make css` - Build CSS only
+- `make js` - Build JavaScript only (TypeScript compilation)
+- `make watch` - Watch CSS changes (for development)
+- `make test` - Run tests
+- `make release` - Release build for all platforms
+- `make clean` - Clean build artifacts
+- `make install` - Local installation (/usr/local/bin)
 
-### 開発モード
+### Development Mode
 
-開発中はCSS/JavaScriptの変更を監視できます：
+During development, you can watch CSS/JavaScript changes:
 
 ```bash
-# CSSの変更を監視
+# Watch CSS changes
 npm run watch-css
 
-# 別のターミナルでTypeScript/JavaScriptの変更を監視
+# In another terminal, watch TypeScript/JavaScript changes
 npm run dev-js
 
-# さらに別のターミナルでGoアプリケーションを実行
+# In yet another terminal, run the Go application
 go run main.go web
 ```
 
-### 技術スタック
+### Tech Stack
 
-- **バックエンド**: Go 1.19+
+- **Backend**: Go 1.19+
   - Cobra (CLI framework)
   - Chi (HTTP router)
   - mark3labs/mcp-go (MCP implementation)
-- **フロントエンド**: 
-  - TypeScript (型安全なJavaScript)
-  - Vite (高速なビルドツール)
-  - Tailwind CSS (ユーティリティファーストCSS)
-- **ビルドツール**: 
-  - Make (ビルド自動化)
-  - npm (パッケージ管理)
+- **Frontend**: 
+  - TypeScript (type-safe JavaScript)
+  - Vite (fast build tool)
+  - Tailwind CSS (utility-first CSS)
+- **Build Tools**: 
+  - Make (build automation)
+  - npm (package management)
 
-## MCP (Model Context Protocol) サーバー
+## MCP (Model Context Protocol) Server
 
-mdtaskはMCPサーバーを内蔵しており、Claude DesktopなどのMCP対応AIアシスタントからタスクを管理できます。
+mdtask includes a built-in MCP server, allowing you to manage tasks from MCP-compatible AI assistants like Claude Desktop.
 
-### MCP設定
+### MCP Configuration
 
-Claude Desktopで使用する場合は、`claude_desktop_config.json`に以下を追加：
+To use with Claude Desktop, add the following to `claude_desktop_config.json`:
 
 ```json
 {
@@ -157,33 +157,33 @@ Claude Desktopで使用する場合は、`claude_desktop_config.json`に以下�
 }
 ```
 
-### 利用可能なMCPツール
+### Available MCP Tools
 
-- `list_tasks` - タスクの一覧表示（ステータスフィルタ、アーカイブ表示対応）
-- `create_task` - 新規タスクの作成
-- `update_task` - タスクの更新（タイトル、説明、ステータス、タグ）
-- `search_tasks` - タスクの検索
-- `archive_task` - タスクのアーカイブ
-- `get_task` - 特定タスクの詳細取得
-- `get_statistics` - タスク統計の取得
+- `list_tasks` - List tasks (with status filter and archive display support)
+- `create_task` - Create a new task
+- `update_task` - Update task (title, description, status, tags)
+- `search_tasks` - Search tasks
+- `archive_task` - Archive a task
+- `get_task` - Get details of a specific task
+- `get_statistics` - Get task statistics
 
-### 利用可能なMCPリソース
+### Available MCP Resources
 
-- `tasks` - アクティブなタスクのMarkdown形式リスト
-- `statistics` - タスク統計情報（JSON形式）
+- `tasks` - Markdown-formatted list of active tasks
+- `statistics` - Task statistics (JSON format)
 
-## Neovimプラグイン
+## Neovim Plugin
 
-mdtaskには、Neovimから直接タスクを管理できるプラグインが含まれています。
+mdtask includes a plugin that allows you to manage tasks directly from Neovim.
 
-### インストール
+### Installation
 
-プラグインは`nvim-mdtask`サブディレクトリにあります。
+The plugin is located in the `nvim-mdtask` subdirectory.
 
-**lazy.nvimの場合:**
+**For lazy.nvim:**
 ```lua
 {
-  dir = '~/path/to/mdtask/nvim-mdtask',  -- mdtaskリポジトリのパスを指定
+  dir = '~/path/to/mdtask/nvim-mdtask',  -- Specify the path to your mdtask repository
   name = 'nvim-mdtask',
   dependencies = {
     'nvim-telescope/telescope.nvim', -- optional
@@ -194,63 +194,63 @@ mdtaskには、Neovimから直接タスクを管理できるプラグインが�
 }
 ```
 
-### 主な機能
+### Main Features
 
-- `:MdTask` - タスク一覧表示
-- `:MdTask new` - 新規タスク作成
-- `:MdTask search <query>` - タスク検索
-- `:MdTask status <status>` - ステータス別表示
+- `:MdTask` - Display task list
+- `:MdTask new` - Create new task
+- `:MdTask search <query>` - Search tasks
+- `:MdTask status <status>` - Display by status
 
-詳細は[nvim-mdtask/README.md](nvim-mdtask/README.md)を参照してください。
+For details, see [nvim-mdtask/README.md](nvim-mdtask/README.md).
 
-## 開発
+## Development
 
-### アーキテクチャ
+### Architecture
 
-mdtaskは以下の層で構成されています：
+mdtask consists of the following layers:
 
-- **CLIコマンド層** (`cmd/mdtask/`): ユーザーインターフェース
-- **サービス層** (`internal/service/`): ビジネスロジック
-- **リポジトリ層** (`internal/repository/`): データアクセス
-- **共通ユーティリティ** (`internal/cli/`, `internal/output/`): 横断的関心事
+- **CLI Command Layer** (`cmd/mdtask/`): User interface
+- **Service Layer** (`internal/service/`): Business logic
+- **Repository Layer** (`internal/repository/`): Data access
+- **Common Utilities** (`internal/cli/`, `internal/output/`): Cross-cutting concerns
 
-### ビルドとテスト
+### Build and Test
 
 ```bash
-# ビルド
+# Build
 go build -o mdtask
 
-# テスト実行
+# Run tests
 go test ./...
 
-# テストとリント実行
+# Run tests and lint
 ./test.sh
 ```
 
-### コード構造
+### Code Structure
 
 ```
 mdtask/
-├── cmd/mdtask/          # CLIコマンド
-│   ├── root.go         # ルートコマンド
-│   ├── new.go          # タスク作成
-│   ├── list.go         # タスク一覧
+├── cmd/mdtask/          # CLI commands
+│   ├── root.go         # Root command
+│   ├── new.go          # Task creation
+│   ├── list.go         # Task listing
 │   └── ...
-├── internal/           # 内部パッケージ
-│   ├── cli/           # CLI共通ユーティリティ
-│   ├── service/       # ビジネスロジック層
-│   ├── repository/    # データアクセス層
-│   ├── task/          # タスクモデル
-│   └── config/        # 設定管理
-├── pkg/               # 公開パッケージ
-│   └── markdown/      # Markdownパーサー
-└── nvim-mdtask/       # Neovimプラグイン
+├── internal/           # Internal packages
+│   ├── cli/           # CLI common utilities
+│   ├── service/       # Business logic layer
+│   ├── repository/    # Data access layer
+│   ├── task/          # Task model
+│   └── config/        # Configuration management
+├── pkg/               # Public packages
+│   └── markdown/      # Markdown parser
+└── nvim-mdtask/       # Neovim plugin
 ```
 
-### 貢献
+### Contributing
 
-1. このリポジトリをフォーク
-2. フィーチャーブランチを作成 (`git checkout -b feature/amazing-feature`)
-3. 変更をコミット (`git commit -m 'Add some amazing feature'`)
-4. ブランチにプッシュ (`git push origin feature/amazing-feature`)
-5. プルリクエストを作成
+1. Fork this repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Create a Pull Request
