@@ -51,7 +51,10 @@ func runNew(cmd *cobra.Command, args []string) error {
 
 	reader := bufio.NewReader(os.Stdin)
 
-	if newTitle == "" {
+	// Check if title flag was explicitly provided (even if empty)
+	titleFlagProvided := cmd.Flags().Changed("title")
+	
+	if !titleFlagProvided {
 		fmt.Print("Title: ")
 		title, err := reader.ReadString('\n')
 		if err != nil {
@@ -59,6 +62,7 @@ func runNew(cmd *cobra.Command, args []string) error {
 		}
 		newTitle = strings.TrimSpace(title)
 	}
+	// If title flag was provided (including empty string), use as-is
 	
 	// Apply title prefix from config
 	if ctx.Config.Task.TitlePrefix != "" {
@@ -70,7 +74,10 @@ func runNew(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("invalid title: %w", err)
 	}
 
-	if newDescription == "" {
+	// Check if description flag was explicitly provided (even if empty)
+	descriptionFlagProvided := cmd.Flags().Changed("description")
+	
+	if !descriptionFlagProvided {
 		// Use description template if available
 		if ctx.Config.Task.DescriptionTemplate != "" {
 			newDescription = ctx.Config.Task.DescriptionTemplate
@@ -83,6 +90,7 @@ func runNew(cmd *cobra.Command, args []string) error {
 			newDescription = strings.TrimSpace(desc)
 		}
 	}
+	// If description flag was provided (including empty string), use as-is
 	
 	// Validate description
 	if err := task.ValidateDescription(newDescription); err != nil {
