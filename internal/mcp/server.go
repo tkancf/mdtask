@@ -220,6 +220,15 @@ func (s *Server) createTaskHandler(ctx context.Context, request mcp.CallToolRequ
 		Updated:     time.Now(),
 	}
 
+	// Add title as first line of content
+	content := request.GetString("content", "")
+	titleLine := fmt.Sprintf("# %s", title)
+	if content != "" {
+		t.Content = fmt.Sprintf("%s\n\n%s", titleLine, content)
+	} else {
+		t.Content = titleLine
+	}
+
 	// Set status
 	if status == "" {
 		status = "TODO"
@@ -232,11 +241,10 @@ func (s *Server) createTaskHandler(ctx context.Context, request mcp.CallToolRequ
 	}
 
 	// Create in repository
-	id, err := s.repo.Create(t)
+	_, err := s.repo.Create(t)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create task: %w", err)
 	}
-	t.ID = id
 
 	result := fmt.Sprintf("Task created successfully\nID: %s\nTitle: %s", t.ID, t.Title)
 	return mcp.NewToolResultText(result), nil

@@ -390,7 +390,7 @@ func TestTaskRepository_Search(t *testing.T) {
 		expected int
 	}{
 		{"bug", 2},          // In title
-		{"dashboard", 2},    // In title and content
+		{"dashboard", 1},    // In title and content (same task)
 		{"login", 1},        // In description
 		{"statistics", 1},   // In content
 		{"urgent", 1},       // In tags

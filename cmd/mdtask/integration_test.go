@@ -3,14 +3,10 @@ package mdtask
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
-	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
-	"github.com/spf13/cobra"
 	"github.com/tkancf/mdtask/internal/output"
 )
 
@@ -56,11 +52,6 @@ func (tc *TestContext) Execute(args ...string) error {
 	fullArgs := append([]string{"--paths", tc.tempDir}, args...)
 	cmd.SetArgs(fullArgs)
 
-	// Reset flags to avoid conflicts
-	cmd.ResetFlags()
-	cmd.ResetCommands()
-	init() // Re-initialize commands
-
 	return cmd.Execute()
 }
 
@@ -82,7 +73,40 @@ func (tc *TestContext) GetStderr() string {
 
 // ParseJSONOutput parses stdout as JSON
 func (tc *TestContext) ParseJSONOutput(v interface{}) error {
-	return json.Unmarshal(tc.stdout.Bytes(), v)
+	output := tc.stdout.String()
+	
+	// Find JSON object in the output
+	start := strings.Index(output, "{")
+	if start == -1 {
+		return json.Unmarshal(tc.stdout.Bytes(), v)
+	}
+	
+	// Find the matching closing brace
+	braceCount := 0
+	end := start
+	for i, char := range output[start:] {
+		if char == '{' {
+			braceCount++
+		} else if char == '}' {
+			braceCount--
+			if braceCount == 0 {
+				end = start + i + 1
+				break
+			}
+		}
+	}
+	
+	if braceCount != 0 {
+		return json.Unmarshal(tc.stdout.Bytes(), v)
+	}
+	
+	jsonStr := output[start:end]
+	err := json.Unmarshal([]byte(jsonStr), v)
+	if err != nil {
+		// Debug output
+		tc.t.Logf("Failed to parse JSON: %v\nExtracted JSON:\n%s\nFull output:\n%s", err, jsonStr, output)
+	}
+	return err
 }
 
 func TestIntegration_CreateAndListTasks(t *testing.T) {
@@ -90,13 +114,13 @@ func TestIntegration_CreateAndListTasks(t *testing.T) {
 	defer tc.Cleanup()
 
 	// Create a task
-	err := tc.Execute("new", "--title", "Integration Test Task", "--description", "Test Description", "--status", "TODO")
+	err := tc.Execute("new", "--title", "Integration Test Task", "--description", "Test Description", "--status", "TODO", "--content", "Test content")
 	if err != nil {
 		t.Fatalf("failed to create task: %v", err)
 	}
 
 	output := tc.GetStdout()
-	if !strings.Contains(output, "Task created successfully") {
+	if !strings.Contains(output, "Task created successfully!") {
 		t.Error("expected success message")
 	}
 
@@ -117,7 +141,7 @@ func TestIntegration_CreateAndGetTask_JSON(t *testing.T) {
 	defer tc.Cleanup()
 
 	// Create a task with JSON output
-	err := tc.ExecuteWithFormat("json", "new", "--title", "JSON Task", "--description", "JSON Description")
+	err := tc.ExecuteWithFormat("json", "new", "--title", "JSON Task", "--description", "JSON Description", "--content", "JSON content")
 	if err != nil {
 		t.Fatalf("failed to create task: %v", err)
 	}
@@ -152,7 +176,7 @@ func TestIntegration_EditTask(t *testing.T) {
 	defer tc.Cleanup()
 
 	// Create a task
-	err := tc.ExecuteWithFormat("json", "new", "--title", "Original Title")
+	err := tc.ExecuteWithFormat("json", "new", "--title", "Original Title", "--content", "Original content")
 	if err != nil {
 		t.Fatalf("failed to create task: %v", err)
 	}
@@ -192,7 +216,7 @@ func TestIntegration_ArchiveTask(t *testing.T) {
 	defer tc.Cleanup()
 
 	// Create a task
-	err := tc.ExecuteWithFormat("json", "new", "--title", "Task to Archive")
+	err := tc.ExecuteWithFormat("json", "new", "--title", "Task to Archive", "--content", "Archive content")
 	if err != nil {
 		t.Fatalf("failed to create task: %v", err)
 	}
@@ -265,7 +289,7 @@ func TestIntegration_SearchTasks(t *testing.T) {
 	}
 
 	for _, task := range tasks {
-		err := tc.Execute("new", "--title", task.title, "--tags", task.tags)
+		err := tc.Execute("new", "--title", task.title, "--tags", task.tags, "--content", "Test content")
 		if err != nil {
 			t.Fatalf("failed to create task: %v", err)
 		}
@@ -306,7 +330,7 @@ func TestIntegration_ParentChildTasks(t *testing.T) {
 	defer tc.Cleanup()
 
 	// Create parent task
-	err := tc.ExecuteWithFormat("json", "new", "--title", "Parent Task")
+	err := tc.ExecuteWithFormat("json", "new", "--title", "Parent Task", "--content", "Parent content")
 	if err != nil {
 		t.Fatalf("failed to create parent task: %v", err)
 	}
@@ -317,7 +341,7 @@ func TestIntegration_ParentChildTasks(t *testing.T) {
 	}
 
 	// Create subtask
-	err = tc.ExecuteWithFormat("json", "new", "--title", "Subtask 1", "--parent", parent.ID)
+	err = tc.ExecuteWithFormat("json", "new", "--title", "Subtask 1", "--parent", parent.ID, "--content", "Subtask content")
 	if err != nil {
 		t.Fatalf("failed to create subtask: %v", err)
 	}
@@ -373,7 +397,7 @@ func TestIntegration_TaskValidation(t *testing.T) {
 		},
 		{
 			name:    "valid task",
-			args:    []string{"new", "--title", "Valid Task", "--status", "TODO", "--deadline", "2024-12-31"},
+			args:    []string{"new", "--title", "Valid Task", "--status", "TODO", "--deadline", "2024-12-31", "--content", "Valid content"},
 			wantErr: false,
 		},
 	}

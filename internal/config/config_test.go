@@ -65,6 +65,14 @@ open_browser = false`,
 					Port:        8080,
 					OpenBrowser: false,
 				},
+				MCP: MCPConfig{
+					Enabled:      true,
+					AllowedPaths: []string{},
+				},
+				Editor: EditorConfig{
+					Command: "",
+					Args:    []string{},
+				},
 			},
 			wantErr: false,
 		},
@@ -84,6 +92,14 @@ port = 9000`,
 				Web: WebConfig{
 					Port:        9000,
 					OpenBrowser: true, // default
+				},
+				MCP: MCPConfig{
+					Enabled:      true,
+					AllowedPaths: []string{},
+				},
+				Editor: EditorConfig{
+					Command: "",
+					Args:    []string{},
 				},
 			},
 			wantErr: false,
