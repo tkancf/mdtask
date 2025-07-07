@@ -1,6 +1,7 @@
 {
   "name": "mdtask",
   "version": "1.0.0",
+  "type": "module",
   "description": "Task management tool using Markdown files",
   "scripts": {
     "build-css": "tailwindcss -i ./internal/web/static/css/input.css -o ./internal/web/static/css/style.css --minify",
