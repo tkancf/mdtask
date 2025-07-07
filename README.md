@@ -81,6 +81,23 @@ Task status and management scope are determined using tags in the YAML frontmatt
 - Go 1.19 or higher
 - Node.js 16 or higher (for WebUI style and JavaScript generation)
 
+### Download Pre-built Binaries
+
+Pre-built binaries are available for macOS, Linux, and Windows from the [releases page](https://github.com/tkancf/mdtask/releases).
+
+Download the appropriate binary for your platform:
+- `mdtask-darwin-amd64` - macOS (Intel)
+- `mdtask-darwin-arm64` - macOS (Apple Silicon)
+- `mdtask-linux-amd64` - Linux (x86_64)
+- `mdtask-linux-arm64` - Linux (ARM64)
+- `mdtask-windows-amd64.exe` - Windows (x86_64)
+
+After downloading, make the binary executable (macOS/Linux):
+```bash
+chmod +x mdtask-*
+sudo mv mdtask-* /usr/local/bin/mdtask
+```
+
 ### Build from Source
 
 ```bash
@@ -254,3 +271,19 @@ mdtask/
 3. Commit your changes (`git commit -m 'Add some amazing feature'`)
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Create a Pull Request
+
+### Creating a Release
+
+Releases are automatically built and published when a new tag is pushed:
+
+```bash
+# Tag a new version
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The GitHub Actions workflow will:
+- Build binaries for all supported platforms
+- Generate checksums
+- Create a GitHub release with auto-generated release notes
+- Upload all binaries and checksums as release assets

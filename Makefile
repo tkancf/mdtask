@@ -6,6 +6,12 @@ GO_FILES=$(shell find . -type f -name '*.go' -not -path "./vendor/*")
 CSS_INPUT=internal/web/static/css/input.css
 CSS_OUTPUT=internal/web/static/css/style.css
 
+# Version information
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+COMMIT ?= $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+BUILD_TIME ?= $(shell date -u '+%Y-%m-%d_%H:%M:%S')
+LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.buildTime=$(BUILD_TIME)
+
 # Default target
 all: deps css js build
 
@@ -32,7 +38,7 @@ watch:
 # Build binary
 build: css js
 	@echo "Building binary..."
-	@go build -o $(BINARY_NAME) .
+	@go build -ldflags "$(LDFLAGS)" -o $(BINARY_NAME) .
 
 # Run tests
 test:
@@ -41,26 +47,26 @@ test:
 
 # Build for release (all platforms)
 release: css js
-	@echo "Building release binaries..."
+	@echo "Building release binaries for version $(VERSION)..."
 	@mkdir -p dist
 	
 	# macOS
 	@echo "Building for macOS (amd64)..."
-	@GOOS=darwin GOARCH=amd64 go build -o dist/$(BINARY_NAME)-darwin-amd64 .
+	@GOOS=darwin GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/$(BINARY_NAME)-darwin-amd64 .
 	
 	@echo "Building for macOS (arm64)..."
-	@GOOS=darwin GOARCH=arm64 go build -o dist/$(BINARY_NAME)-darwin-arm64 .
+	@GOOS=darwin GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o dist/$(BINARY_NAME)-darwin-arm64 .
 	
 	# Linux
 	@echo "Building for Linux (amd64)..."
-	@GOOS=linux GOARCH=amd64 go build -o dist/$(BINARY_NAME)-linux-amd64 .
+	@GOOS=linux GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/$(BINARY_NAME)-linux-amd64 .
 	
 	@echo "Building for Linux (arm64)..."
-	@GOOS=linux GOARCH=arm64 go build -o dist/$(BINARY_NAME)-linux-arm64 .
+	@GOOS=linux GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o dist/$(BINARY_NAME)-linux-arm64 .
 	
 	# Windows
 	@echo "Building for Windows (amd64)..."
-	@GOOS=windows GOARCH=amd64 go build -o dist/$(BINARY_NAME)-windows-amd64.exe .
+	@GOOS=windows GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o dist/$(BINARY_NAME)-windows-amd64.exe .
 	
 	@echo "Release builds complete!"
 

@@ -17,6 +17,17 @@ It provides a CLI interface for managing tasks with YAML frontmatter metadata.`,
 	
 	// Global output format flag
 	outputFormat string
+	
+	// Version information
+	versionInfo = struct {
+		Version   string
+		Commit    string
+		BuildTime string
+	}{
+		Version:   "dev",
+		Commit:    "unknown",
+		BuildTime: "unknown",
+	}
 )
 
 func Execute() {
@@ -29,4 +40,11 @@ func Execute() {
 func init() {
 	rootCmd.PersistentFlags().StringSlice("paths", []string{"."}, "Paths to search for task files")
 	rootCmd.PersistentFlags().StringVarP(&outputFormat, "format", "f", "text", "Output format (text, json)")
+}
+
+// SetVersionInfo sets the version information for the CLI
+func SetVersionInfo(version, commit, buildTime string) {
+	versionInfo.Version = version
+	versionInfo.Commit = commit
+	versionInfo.BuildTime = buildTime
 }

@@ -31,28 +31,26 @@ jobs:
       - name: Build CSS
         run: npm run build-css
 
+      - name: Build JavaScript
+        run: npm run build-js
+
       - name: Run tests
         run: go test ./...
 
       - name: Build binaries
         run: make release
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ github.ref }}
-          release_name: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
-
-      - name: Upload Release Assets
+      - name: Generate checksums
         run: |
-          for file in dist/*; do
-            echo "Uploading $file"
-            gh release upload ${{ github.ref_name }} "$file" --clobber
-          done
+          cd dist
+          sha256sum * > checksums.txt
+          cd ..
+
+      - name: Create Release
+        run: |
+          gh release create ${{ github.ref_name }} \
+            --title "Release ${{ github.ref_name }}" \
+            --generate-notes \
+            dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
