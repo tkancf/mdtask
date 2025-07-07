@@ -136,6 +136,15 @@ func runNew(cmd *cobra.Command, args []string) error {
 		Aliases:     []string{},
 	}
 
+	// Add title as first line of content
+	titleLine := fmt.Sprintf("# %s", newTitle)
+	if content != "" {
+		content = fmt.Sprintf("%s\n\n%s", titleLine, content)
+	} else {
+		content = titleLine
+	}
+	t.Content = content
+
 	// Use config default status if not specified
 	statusStr := newStatus
 	if statusStr == "" {

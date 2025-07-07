@@ -12,7 +12,7 @@ id: unique-identifier
 aliases:
   - Alternative Title
 tags:
-    - mdtask
+  - mdtask
 created: YYYY-MM-DD HH:MM
 description: Brief description
 title: Display Title
