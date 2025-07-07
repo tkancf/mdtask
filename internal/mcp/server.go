@@ -205,7 +205,6 @@ func (s *Server) createTaskHandler(ctx context.Context, request mcp.CallToolRequ
 	title := request.GetString("title", "")
 	description := request.GetString("description", "")
 	status := request.GetString("status", "")
-	tagsRaw := request.GetStringSlice("tags", []string{})
 
 	if title == "" {
 		return nil, fmt.Errorf("title is required")
@@ -235,9 +234,17 @@ func (s *Server) createTaskHandler(ctx context.Context, request mcp.CallToolRequ
 	}
 	t.SetStatus(task.Status(strings.ToUpper(status)))
 
-	// Add additional tags
-	for _, tag := range tagsRaw {
-		t.Tags = append(t.Tags, tag)
+	// Handle tags - need to manually extract from interface{}
+	if argsMap, ok := request.Params.Arguments.(map[string]interface{}); ok {
+		if tagsInterface, exists := argsMap["tags"]; exists {
+			if tagsSlice, ok := tagsInterface.([]interface{}); ok {
+				for _, tagInterface := range tagsSlice {
+					if tag, ok := tagInterface.(string); ok {
+						t.Tags = append(t.Tags, tag)
+					}
+				}
+			}
+		}
 	}
 
 	// Create in repository
